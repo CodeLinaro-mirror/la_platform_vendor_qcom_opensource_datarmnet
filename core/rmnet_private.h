@@ -1,4 +1,5 @@
 /* Copyright (c) 2013-2014, 2016-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -26,8 +27,8 @@
 #define RMNET_INGRESS_FORMAT_DL_MARKER_V2       BIT(29)
 
 #define RMNET_FLAGS_INGRESS_COALESCE            BIT(4)
-#define RMNET_FLAGS_INGRESS_MAP_CKSUMV5         BIT(5)
-#define RMNET_FLAGS_EGRESS_MAP_CKSUMV5          BIT(6)
+#define RMNET_PRIV_FLAGS_INGRESS_MAP_CKSUMV5    BIT(5)
+#define RMNET_PRIV_FLAGS_EGRESS_MAP_CKSUMV5     BIT(6)
 
 #define RMNET_INGRESS_FORMAT_DL_MARKER  (RMNET_INGRESS_FORMAT_DL_MARKER_V1 |\
 RMNET_INGRESS_FORMAT_DL_MARKER_V2)

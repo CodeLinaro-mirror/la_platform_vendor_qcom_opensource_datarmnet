@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,6 +27,7 @@
 #include "rmnet_qmi.h"
 #include "rmnet_trace.h"
 #include "qmi_rmnet.h"
+#include "rmnet_eth_main.h"
 
 #define RMNET_FRAG_DESCRIPTOR_POOL_SIZE 64
 #define RMNET_DL_IND_HDR_SIZE (sizeof(struct rmnet_map_dl_ind_hdr) + \
@@ -1060,8 +1061,17 @@ void rmnet_frag_deliver(struct rmnet_frag_descriptor *frag_desc,
 	struct sk_buff *skb;
 
 	skb = rmnet_alloc_skb(frag_desc, port);
-	if (skb)
-		rmnet_deliver_skb(skb, port);
+	if (skb) {
+		if (!frag_desc->eth_info.is_eth)
+			rmnet_deliver_skb(skb, port);
+		else {
+			int rc;
+
+			rc = rmnet_ingress_eth_handler(skb, frag_desc->eth_info.eth_ep);
+			if (rc == -1)
+				kfree_skb(skb);
+		}
+	}
 	rmnet_recycle_frag_descriptor(frag_desc, port);
 }
 EXPORT_SYMBOL(rmnet_frag_deliver);
@@ -1780,8 +1790,18 @@ __rmnet_frag_ingress_handler(struct rmnet_frag_descriptor *frag_desc,
 		goto recycle;
 
 	ep = rmnet_get_endpoint(port, mux_id);
-	if (!ep)
-		goto recycle;
+	if (!ep) {
+		hlist_for_each_entry_rcu(ep, &port->eth_port.muxed_ep[mux_id], hlnode) {
+			if (ep->mux_id == mux_id) {
+				frag_desc->eth_info.is_eth = 1;
+				frag_desc->eth_info.eth_ep = ep;
+				break;
+			}
+		}
+
+		if (!frag_desc->eth_info.is_eth)
+			goto recycle;
+	}
 
 	frag_desc->dev = ep->egress_dev;
 

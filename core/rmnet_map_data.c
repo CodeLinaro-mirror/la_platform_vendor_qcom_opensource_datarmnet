@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -399,6 +399,7 @@ struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb,
 		memcpy(skbn->data, data, packet_len);
 	}
 
+	skbn->dev = skb->dev;
 	skbn->priority = skb->priority;
 	pskb_pull(skb, packet_len);
 

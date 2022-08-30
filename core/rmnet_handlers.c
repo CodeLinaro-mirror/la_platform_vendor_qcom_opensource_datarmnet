@@ -30,6 +30,8 @@
 #include "rmnet_handlers.h"
 #include "rmnet_descriptor.h"
 #include "rmnet_ll.h"
+#include "rmnet_eth_main.h"
+#include "rmnet_module.h"
 
 #include "rmnet_qmi.h"
 #include "qmi_rmnet.h"
@@ -56,8 +58,6 @@ EXPORT_TRACEPOINT_SYMBOL(rmnet_freq_update);
 EXPORT_TRACEPOINT_SYMBOL(rmnet_freq_reset);
 EXPORT_TRACEPOINT_SYMBOL(rmnet_freq_boost);
 EXPORT_TRACEPOINT_SYMBOL(print_icmp_rx);
-
-
 
 /* Helper Functions */
 
@@ -273,6 +273,19 @@ drop_skb:
 	return;
 }
 
+int rmnet_ingress_eth_handler(struct sk_buff *skb,
+							  struct rmnet_endpoint *eth_ep)
+{
+	int ret;
+	rx_handler_result_t rc = -1;
+
+	/* Framework function returns 0 if hook doesn't exist */
+	ret = rmnet_module_hook_eth_rx_handler(&rc, &skb, eth_ep);
+	if (ret != 0 && rc != -1)
+		return 1;
+	return 0;
+}
+
 /* MAP handler */
 
 static void
@@ -303,16 +316,38 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 	}
 
 	mux_id = qmap->mux_id;
-	pad = qmap->pad_len;
-	len = ntohs(qmap->pkt_len) - pad;
 
 	if (mux_id >= RMNET_MAX_LOGICAL_EP)
 		goto free_skb;
 
 	ep = rmnet_get_endpoint(port, mux_id);
-	if (!ep)
-		goto free_skb;
+	if (!ep) {
+		struct rmnet_endpoint *eth_ep = NULL;
 
+		hlist_for_each_entry_rcu(ep, &port->eth_port.muxed_ep[mux_id], hlnode) {
+			if (ep->mux_id == mux_id) {
+				eth_ep = ep;
+				break;
+			}
+		}
+
+		if (eth_ep) {
+			int rc;
+
+			rc = rmnet_ingress_eth_handler(skb, eth_ep);
+			/* Module framework returns 0 is function hook doesn't exist */
+			if (rc == 0)
+				goto free_skb;
+
+			/* ETH Handler handles the freeing of SKB when done */
+			return;
+		} else {
+			goto free_skb;
+		}
+	}
+
+	pad = qmap->pad_len;
+	len = ntohs(qmap->pkt_len) - pad;
 	skb->dev = ep->egress_dev;
 
 	/* Handle QMAPv5 packet */

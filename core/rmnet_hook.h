@@ -1,4 +1,4 @@
-/* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+/* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -103,6 +103,14 @@ RMNET_MODULE_HOOK(wlan_flow_match,
 	RMNET_MODULE_HOOK_PROTOCOL(struct sk_buff *skb),
 	RMNET_MODULE_HOOK_ARGS(skb),
 	RMNET_MODULE_HOOK_RETURN_TYPE(void)
+);
+
+RMNET_MODULE_HOOK(eth_rx_handler,
+	RMNET_MODULE_HOOK_NUM(ETH_RX_HANDLER),
+	RMNET_MODULE_HOOK_PROTOCOL(struct sk_buff **pskb,
+				   struct rmnet_endpoint *eth_ep),
+	RMNET_MODULE_HOOK_ARGS(pskb, eth_ep),
+	RMNET_MODULE_HOOK_RETURN_TYPE(rx_handler_result_t)
 );
 
 #endif

@@ -2,7 +2,7 @@ ifneq (, $(filter y, $(CONFIG_ARCH_LAHAINA) $(CONFIG_ARCH_WAIPIO) $(CONFIG_ARCH_
 ccflags-y	+= -DRMNET_LA_PLATFORM
 endif
 
-ifeq ($(CONFIG_ARCH_SDXNIGHTJAR), y)
+ifeq (y, $(filter y, $(CONFIG_ARCH_SDXNIGHTJAR) $(CONFIG_ARCH_SDXPINN) $(CONFIG_ARCH_SDXBAAGHA)))
 ccflags-y	+= -DRMNET_TRACE_INCLUDE_LE
 endif
 

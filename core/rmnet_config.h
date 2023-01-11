@@ -16,11 +16,15 @@
 
 #include <linux/skbuff.h>
 #include <net/gro_cells.h>
+#include "rmnet_map.h"
 
 #ifndef _RMNET_CONFIG_H_
 #define _RMNET_CONFIG_H_
-
 #define RMNET_MAX_LOGICAL_EP 255
+
+/* Needs to be included after include guards and RMNET_MAX_LOGICAL_EP */
+#include "rmnet_eth_main.h"
+
 #define RMNET_MAX_VEID 4
 
 #define RMNET_SHS_STMP_ALL BIT(0)
@@ -38,6 +42,13 @@
 
 #define RMNET_APS_LLB(prio) \
         (((prio) >> 16 == RMNET_APS_MAJOR) && ((prio) & RMNET_APS_LLB_MASK))
+
+enum {
+	IFLA_RMNET_DFC_QOS = __IFLA_RMNET_MAX,
+	IFLA_RMNET_UL_AGG_PARAMS,
+	IFLA_RMNET_UL_AGG_STATE_ID,
+	__IFLA_RMNET_EXT_MAX,
+};
 
 struct rmnet_shs_clnt_s {
 	u16 config;
@@ -152,6 +163,9 @@ struct rmnet_port {
 	/* Descriptor pool */
 	spinlock_t desc_pool_lock;
 	struct rmnet_frag_descriptor_pool *frag_desc_pool;
+
+	/* Psuedo port info for ETH */
+	struct rmnet_eth_port eth_port;
 };
 
 extern struct rtnl_link_ops rmnet_link_ops;

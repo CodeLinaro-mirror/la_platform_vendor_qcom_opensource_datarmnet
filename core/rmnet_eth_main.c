@@ -732,32 +732,86 @@ struct rtnl_link_ops rmnet_eth_link_ops __read_mostly = {
 	.fill_info	= rmnet_eth_fill_info,
 };
 
+static void rmnet_eth_force_unassociate_device(struct net_device *dev)
+{
+	struct net_device *real_dev = dev;
+	struct hlist_node *tmp_ep;
+	struct rmnet_endpoint *ep;
+	struct rmnet_eth_port *port;
+	unsigned long bkt_ep;
+	LIST_HEAD(list);
+	HLIST_HEAD(cleanup_list);
+
+	if (!rmnet_is_real_dev_registered(real_dev))
+		return;
+
+	ASSERT_RTNL();
+
+	port = rmnet_eth_get_port_rtnl(dev);
+
+	hlist_for_each_entry_rcu(ep, &port->muxed_ep[0], hlnode)
+		hlist_del_init_rcu(&ep->hlnode);
+
+	hash_for_each_safe(port->muxed_ep, bkt_ep, tmp_ep, ep, hlnode) {
+		unregister_netdevice_queue(ep->egress_dev, &list);
+		rmnet_veth_dellink(ep->mux_id, port, ep);
+
+		hlist_del_init_rcu(&ep->hlnode);
+		hlist_add_head(&ep->hlnode, &cleanup_list);
+	}
+
+	synchronize_rcu();
+
+	hlist_for_each_entry_safe(ep, tmp_ep, &cleanup_list, hlnode) {
+		hlist_del(&ep->hlnode);
+		kfree(ep);
+	}
+
+	/* Unregistering devices in context before freeing port.
+	 * If this API becomes non-context their order should switch.
+	 */
+	unregister_netdevice_many(&list);
+
+	rmnet_eth_unregister_real_device(real_dev, port);
+}
+
 static int rmnet_eth_notify_cb(struct notifier_block *nb,
                                unsigned long event, void *data)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(data);
 	static int num_reg_devs = 0;
+	int is_eth_dev = 0;
 
 	if (!dev)
 		return NOTIFY_DONE;
 
+	is_eth_dev = !strncmp(dev->name, RMNET_ETH_PREFIX,
+			      strlen(RMNET_ETH_PREFIX));
+
 	switch (event) {
 	case NETDEV_REGISTER:
-		spin_lock(&dev_count_lock);
-		rmnet_eth_set_hooks();
-		num_reg_devs++;
-		spin_unlock(&dev_count_lock);
+		if (is_eth_dev) {
+			spin_lock(&dev_count_lock);
+			rmnet_eth_set_hooks();
+			num_reg_devs++;
+			spin_unlock(&dev_count_lock);
+		}
+
 		break;
 	case NETDEV_UNREGISTER:
-		spin_lock(&dev_count_lock);
-		netdev_dbg(dev, "Kernel unregister\n");
-		if (num_reg_devs == 1) {
-			rmnet_eth_unset_hooks();
-			num_reg_devs--;
-		}
-		else if (num_reg_devs > 1)
-			num_reg_devs--;
-		spin_unlock(&dev_count_lock);
+		if (is_eth_dev) {
+			spin_lock(&dev_count_lock);
+			netdev_dbg(dev, "Kernel unregister rmnet_eth device\n");
+			if (num_reg_devs == 1) {
+				rmnet_eth_unset_hooks();
+				num_reg_devs--;
+			} else if (num_reg_devs > 1)
+				num_reg_devs--;
+
+			spin_unlock(&dev_count_lock);
+		} else if (!strncmp(dev->name, RMNET_ETH_PHY_PREFIX,
+				    strlen(RMNET_ETH_PHY_PREFIX)))
+			rmnet_eth_force_unassociate_device(dev);
 		break;
 	case NETDEV_DOWN:
 		break;

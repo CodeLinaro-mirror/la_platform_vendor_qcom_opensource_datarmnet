@@ -25,6 +25,8 @@
 #define RMNET_ETH_FAILURE         (-1)
 #define RMNET_ETH_SUCCESS         (0)
 #define RMNET_ETH_NEEDED_HEADROOM (16)
+#define RMNET_ETH_PREFIX          "rmnet_eth"
+#define RMNET_ETH_PHY_PREFIX      "rmnet_ipa"
 
 enum rmnet_eth_drop_reasons {
         RMNET_ETH_RX_BAD_ETH,

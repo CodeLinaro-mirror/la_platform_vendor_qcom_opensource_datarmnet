@@ -1,4 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,6 +22,7 @@
 #include <linux/skbuff.h>
 #include "rmnet_config.h"
 #include "rmnet_map.h"
+#include "rmnet_eth_main.h"
 
 struct rmnet_frag_descriptor_pool {
 	struct list_head free_list;
@@ -35,6 +37,7 @@ struct rmnet_fragment {
 struct rmnet_frag_descriptor {
 	struct list_head list;
 	struct list_head frags;
+	struct rmnet_eth_frag_info eth_info;
 	struct net_device *dev;
 	u32 coal_bufsize;
 	u32 coal_bytes;

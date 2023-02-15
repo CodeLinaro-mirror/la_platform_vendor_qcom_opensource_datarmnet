@@ -16,3 +16,8 @@ menuconfig RMNET_CTL
 	---help---
 	  Enable the RMNET CTL module which is used for handling QMAP commands
 	  for flow control purposes.
+
+menuconfig RMNET_ETH
+	default m
+	---help---
+	  Enable the RMNET ETH module which is used for handling ethernet frames

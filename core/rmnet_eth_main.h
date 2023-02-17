@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -25,6 +25,8 @@
 #define RMNET_ETH_FAILURE         (-1)
 #define RMNET_ETH_SUCCESS         (0)
 #define RMNET_ETH_NEEDED_HEADROOM (16)
+#define RMNET_ETH_PREFIX          "rmnet_eth"
+#define RMNET_ETH_PHY_PREFIX      "rmnet_ipa"
 
 enum rmnet_eth_drop_reasons {
         RMNET_ETH_RX_BAD_ETH,

@@ -105,4 +105,12 @@ RMNET_MODULE_HOOK(wlan_flow_match,
 	RMNET_MODULE_HOOK_RETURN_TYPE(void)
 );
 
+RMNET_MODULE_HOOK(eth_rx_handler,
+	RMNET_MODULE_HOOK_NUM(ETH_RX_HANDLER),
+	RMNET_MODULE_HOOK_PROTOCOL(struct sk_buff **pskb,
+				   struct rmnet_endpoint *eth_ep),
+	RMNET_MODULE_HOOK_ARGS(pskb, eth_ep),
+	RMNET_MODULE_HOOK_RETURN_TYPE(rx_handler_result_t)
+);
+
 #endif

@@ -63,6 +63,8 @@ enum {
 	IFLA_RMNET_UL_AGG_PARAMS,
 	IFLA_RMNET_UL_AGG_STATE_ID,
 	IFLA_RMNET_IP_ROUTE_CONFIG,
+	IFLA_RMNET_ROUTE_MODE,
+	IFLA_RMNET_IP_ROUTE_PARAMS,
 	__IFLA_RMNET_EXT_MAX,
 };
 
@@ -84,6 +86,12 @@ static const struct nla_policy rmnet_policy[__IFLA_RMNET_EXT_MAX] = {
 	},
 	[IFLA_RMNET_IP_ROUTE_CONFIG] = {
 		.len = sizeof(struct rmnet_ip_route_config)
+	},
+	[IFLA_RMNET_ROUTE_MODE] = {
+		.type = NLA_U8
+	},
+	[IFLA_RMNET_IP_ROUTE_PARAMS] = {
+		.len = sizeof(struct rmnet_ip_route_params)
 	},
 };
 
@@ -194,6 +202,7 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[],
 			 struct netlink_ext_ack *extack)
 {
+	struct rmnet_priv *priv = NULL;
 	struct net_device *real_dev;
 	int mode = RMNET_EPMODE_VND;
 	struct rmnet_endpoint *ep;
@@ -250,6 +259,20 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 					       agg_params->agg_count,
 					       agg_params->agg_features,
 					       agg_params->agg_time);
+	}
+
+	priv = netdev_priv(dev);
+	if (data[IFLA_RMNET_ROUTE_MODE])
+		priv->route_mode = nla_get_u8(data[IFLA_RMNET_ROUTE_MODE]);
+
+	if (data[IFLA_RMNET_IP_ROUTE_PARAMS]) {
+		struct rmnet_ip_route_params *ip_route_params = NULL;
+
+		if (port->data_format & RMNET_INGRESS_FORMAT_IP_ROUTE) {
+			ip_route_params = nla_data(data[IFLA_RMNET_IP_ROUTE_PARAMS]);
+			memcpy(&port->ip_route_params, ip_route_params,
+			       sizeof(*ip_route_params));
+		}
 	}
 
 	return 0;
@@ -505,6 +528,19 @@ static int rmnet_changelink(struct net_device *dev, struct nlattr *tb[],
 		}
 	}
 
+	if (data[IFLA_RMNET_ROUTE_MODE])
+		priv->route_mode = nla_get_u8(data[IFLA_RMNET_ROUTE_MODE]);
+
+	if (data[IFLA_RMNET_IP_ROUTE_PARAMS]) {
+		struct rmnet_ip_route_params *ip_route_params = NULL;
+
+		if (port->data_format & RMNET_INGRESS_FORMAT_IP_ROUTE) {
+			ip_route_params = nla_data(data[IFLA_RMNET_IP_ROUTE_PARAMS]);
+			memcpy(&port->ip_route_params, ip_route_params,
+			       sizeof(*ip_route_params));
+		}
+	}
+
 	return rc;
 }
 
@@ -518,7 +554,15 @@ static size_t rmnet_get_size(const struct net_device *dev)
 		/* IFLA_RMNET_DFC_QOS */
 		nla_total_size(sizeof(struct tcmsg)) +
 		/* IFLA_RMNET_UL_AGG_PARAMS */
-		nla_total_size(sizeof(struct rmnet_egress_agg_params));
+		nla_total_size(sizeof(struct rmnet_egress_agg_params)) +
+		/* IFLA_RMNET_UL_AGG_STATE_ID */
+		nla_total_size(1) +
+		/* IFLA_RMNET_IP_ROUTE_CONFIG */
+		nla_total_size(sizeof(struct rmnet_ip_route_config)) +
+		/* IFLA_RMNET_ROUTE_MODE */
+		nla_total_size(1) +
+		/* IFLA_RMNET_IP_ROUTE_PARAMS */
+		nla_total_size(sizeof(struct rmnet_ip_route_params));
 }
 
 static int rmnet_fill_info(struct sk_buff *skb, const struct net_device *dev)
@@ -557,7 +601,16 @@ static int rmnet_fill_info(struct sk_buff *skb, const struct net_device *dev)
 			    sizeof(state->params),
 			    &state->params))
 			goto nla_put_failure;
+
+		if (nla_put(skb, IFLA_RMNET_IP_ROUTE_PARAMS,
+			    sizeof(port->ip_route_params),
+			    &port->ip_route_params))
+			goto nla_put_failure;
 	}
+
+	if (nla_put(skb, IFLA_RMNET_ROUTE_MODE, sizeof(priv->route_mode),
+		    &priv->route_mode))
+		goto nla_put_failure;
 
 	return 0;
 
@@ -939,6 +992,9 @@ static int rmnet_addr6_event(struct notifier_block *unused,
 		return NOTIFY_OK;
 
 	priv = netdev_priv(dev);
+	if (priv->route_mode != RMNET_ROUTE_MODE_IP)
+		return NOTIFY_OK;
+
 	real_dev = priv->real_dev;
 	port = rmnet_get_port_rtnl(real_dev);
 
@@ -983,6 +1039,9 @@ static int rmnet_addr4_event(struct notifier_block *unused,
 		return NOTIFY_OK;
 
 	priv = netdev_priv(dev);
+	if (priv->route_mode != RMNET_ROUTE_MODE_IP)
+		return NOTIFY_OK;
+
 	real_dev = priv->real_dev;
 	port = rmnet_get_port_rtnl(real_dev);
 

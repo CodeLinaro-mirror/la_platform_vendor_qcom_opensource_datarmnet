@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -193,6 +193,7 @@ static void rmnet_deliver_skb_list(struct sk_buff_head *head,
 
 static void rmnet_ip_route_rcv(struct sk_buff *skb, struct rmnet_port *port)
 {
+	struct rmnet_priv *priv = NULL;
 	struct rmnet_endpoint *ep;
 	struct ipv6hdr *ip6h;
 	int ip_len;
@@ -262,6 +263,8 @@ static void rmnet_ip_route_rcv(struct sk_buff *skb, struct rmnet_port *port)
 
 	trace_rmnet_skb_ip_route_exit(skb);
 
+	priv = netdev_priv(skb->dev);
+	priv->stats.ip_route_rx_pkts++;
 	netif_receive_skb(skb);
 	return;
 
@@ -284,11 +287,6 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 
 	/* We don't need the spinlock since only we touch this */
 	__skb_queue_head_init(&list);
-
-	if (port->data_format & RMNET_INGRESS_FORMAT_IP_ROUTE) {
-		rmnet_ip_route_rcv(skb, port);
-		return;
-	}
 
 	qmap = (struct rmnet_map_header *)rmnet_map_data_ptr(skb);
 	if (qmap->cd_bit) {
@@ -369,6 +367,12 @@ rmnet_map_ingress_handler(struct sk_buff *skb,
 		}
 
 		skb_push(skb, ETH_HLEN);
+	}
+
+	if ((port->data_format & RMNET_INGRESS_FORMAT_IP_ROUTE) &&
+	    (skb_get_rx_queue(skb) == port->ip_route_params.rx_queue)) {
+		rmnet_ip_route_rcv(skb, port);
+		return;
 	}
 
 	if (port->data_format & (RMNET_FLAGS_INGRESS_COALESCE |
@@ -586,8 +590,12 @@ void rmnet_egress_handler(struct sk_buff *skb, bool low_latency)
 		goto drop;
 
 	skb_len = skb->len;
-	if (port->data_format & RMNET_EGRESS_FORMAT_IP_ROUTE)
+	if (port->data_format & RMNET_EGRESS_FORMAT_IP_ROUTE &&
+	    priv->route_mode == RMNET_ROUTE_MODE_IP) {
+		skb_set_queue_mapping(skb, port->ip_route_params.tx_queue);
+		priv->stats.ip_route_tx_pkts++;
 		goto direct_xmit;
+	}
 	err = rmnet_map_egress_handler(skb, port, mux_id, orig_dev,
 				       low_latency);
 	if (err == -ENOMEM || err == -EINVAL) {

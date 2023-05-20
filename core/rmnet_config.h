@@ -137,6 +137,14 @@ struct rmnet_ip_route_config {
 	u8   call_type;
 };
 
+#define RMNET_ROUTE_MODE_DEFAULT 0
+#define RMNET_ROUTE_MODE_IP 1
+
+struct rmnet_ip_route_params {
+	u16 tx_queue;
+	u16 rx_queue;
+};
+
 /* One instance of this structure is instantiated for each real_dev associated
  * with rmnet.
  */
@@ -164,6 +172,7 @@ struct rmnet_port {
 	/* Descriptor pool */
 	spinlock_t desc_pool_lock;
 	struct rmnet_frag_descriptor_pool *frag_desc_pool;
+	struct rmnet_ip_route_params ip_route_params;
 };
 
 extern struct rtnl_link_ops rmnet_link_ops;
@@ -231,6 +240,8 @@ struct rmnet_priv_stats {
 	u64 ll_tso_segs;
 	u64 ll_tso_errs;
 	u64 aps_prio;
+	u64 ip_route_tx_pkts;
+	u64 ip_route_rx_pkts;
 };
 
 struct rmnet_priv {
@@ -240,6 +251,7 @@ struct rmnet_priv {
 	struct gro_cells gro_cells;
 	struct rmnet_priv_stats stats;
 	void __rcu *qos_info;
+	u8 route_mode;
 };
 
 enum rmnet_dl_marker_prio {

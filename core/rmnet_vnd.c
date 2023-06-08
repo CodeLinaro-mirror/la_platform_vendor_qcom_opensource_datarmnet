@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -503,6 +503,8 @@ static const char rmnet_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"LL TSO segment success",
 	"LL TSO segment fail",
 	"APS priority packets",
+	"IP ROUTE transmits",
+	"IP ROUTE receives",
 };
 
 static const char rmnet_port_gstrings_stats[][ETH_GSTRING_LEN] = {

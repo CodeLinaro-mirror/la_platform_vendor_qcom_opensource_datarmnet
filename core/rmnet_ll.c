@@ -1,5 +1,5 @@
 /* Copyright (c) 2020-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021, 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -146,6 +146,7 @@ int rmnet_ll_send_skb(struct sk_buff *skb)
 {
 	int rc;
 
+#ifdef RMNET_LA_PLATFORM
 	spin_lock_bh(&rmnet_ll_tx_lock);
 	rc = rmnet_ll_client.tx(skb);
 	spin_unlock_bh(&rmnet_ll_tx_lock);
@@ -153,7 +154,10 @@ int rmnet_ll_send_skb(struct sk_buff *skb)
 		rmnet_ll_stats.tx_queue_err++;
 	else
 		rmnet_ll_stats.tx_queue++;
-
+#else
+	dev_queue_xmit(skb);
+	rc = 0;
+#endif
 	return rc;
 }
 

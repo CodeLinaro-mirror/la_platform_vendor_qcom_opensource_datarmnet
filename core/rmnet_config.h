@@ -16,11 +16,15 @@
 
 #include <linux/skbuff.h>
 #include <net/gro_cells.h>
+#include "rmnet_map.h"
 
 #ifndef _RMNET_CONFIG_H_
 #define _RMNET_CONFIG_H_
-
 #define RMNET_MAX_LOGICAL_EP 255
+
+/* Needs to be included after include guards and RMNET_MAX_LOGICAL_EP */
+#include "rmnet_eth_main.h"
+
 #define RMNET_MAX_VEID 4
 
 #define RMNET_SHS_STMP_ALL BIT(0)
@@ -43,7 +47,17 @@ enum rmnet_ip_route_call_type {
 	RMNET_IP_ROUTE_CALL_TYPE_NONE,
 	RMNET_IP_ROUTE_CALL_TYPE_IP,
 	RMNET_IP_ROUTE_CALL_TYPE_NONIP,
-	RMNET_IP_ROUTE_CALL_TYPE_MAX
+	RMNET_IP_ROUTE_CALL_TYPE_MAX,
+};
+
+enum {
+	IFLA_RMNET_DFC_QOS = __IFLA_RMNET_MAX,
+	IFLA_RMNET_UL_AGG_PARAMS,
+	IFLA_RMNET_UL_AGG_STATE_ID,
+	IFLA_RMNET_IP_ROUTE_CONFIG,
+	IFLA_RMNET_ROUTE_MODE,
+	IFLA_RMNET_IP_ROUTE_PARAMS,
+	__IFLA_RMNET_EXT_MAX,
 };
 
 struct rmnet_shs_clnt_s {
@@ -173,6 +187,9 @@ struct rmnet_port {
 	spinlock_t desc_pool_lock;
 	struct rmnet_frag_descriptor_pool *frag_desc_pool;
 	struct rmnet_ip_route_params ip_route_params;
+
+	/* Psuedo port info for ETH */
+	struct rmnet_eth_port eth_port;
 };
 
 extern struct rtnl_link_ops rmnet_link_ops;

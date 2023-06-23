@@ -35,6 +35,8 @@ rmnet_ctl-y += 		rmnet_ctl_client.o \
 			rmnet_ctl_mhi.o
 endif
 
+rmnet_eth-y += 		rmnet_eth_main.o
+
 KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
 
 KBUILD_OPTIONS := RMNET_CORE_ROOT=$(PWD)

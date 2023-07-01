@@ -107,6 +107,10 @@ struct rmnet_port_priv_stats {
 	u64 dl_chain_stat[7];
 	u64 dl_frag_stat_1;
 	u64 dl_frag_stat[5];
+	u64 dl_ipsec;
+	u64 dl_ipsec_invalid_cmd;
+	u64 dl_ipsec_invalid_mux;
+	u64 dl_ipsec_invalid_endpoint;
 };
 
 struct rmnet_egress_agg_params {
@@ -259,6 +263,38 @@ struct rmnet_priv_stats {
 	u64 aps_prio;
 	u64 ip_route_tx_pkts;
 	u64 ip_route_rx_pkts;
+	u64 et_not_spec;
+	u64 et_ipsec_encap;
+	u64 et_ipsec_decap;
+	u64 et_invalid;
+	u64 ec_no_err;
+	u64 ec_dup_seq;
+	u64 ec_out_of_win;
+	u64 ec_auth_err;
+	u64 ec_inc_pad;
+	u64 ec_inc_esp;
+	u64 ec_ecn_err;
+	u64 ec_post_decap_nat;
+	u64 ec_post_decap_inner_pkt;
+	u64 ec_post_decap_inner_flter_pkt;
+	u64 ec_decap_sa_disable;
+	u64 ec_sw_handle;
+	u64 ec_in_pkt_validation;
+	u64 ec_input_pkt_sa_mismatch;
+	u64 ec_frag;
+	u64 ec_discard_rule;
+	u64 ec_encap_sa_disable;
+	u64 ec_code_seq_num_overflow;
+	u64 ec_new_hw_decap;
+	u64 ec_new_hw_encap_exceed_mtu;
+	u64 ec_invalid;
+	u64 dl1_hdr_type_err;
+	u64 dl1_ok;
+	u64 dl2_hdr_type_err;
+	u64 dl2_ok;
+	u64 ul_ipsec;
+	u64 ul1_ok;
+	u64 ul2_ok;
 };
 
 struct rmnet_priv {

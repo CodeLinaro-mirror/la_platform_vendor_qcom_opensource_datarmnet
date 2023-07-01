@@ -215,7 +215,7 @@ void rmnet_eth_egress_handler(struct sk_buff *skb)
 		goto drop;
 	}
 
-	skb->queue_mapping = 1;
+	skb->queue_mapping = IPA_RMNET_TX_QUEUE_ETH_PDU;
 
 	rmnet_veth_tx_fixup(orig_dev, skb_len);
 	dev_queue_xmit(skb);

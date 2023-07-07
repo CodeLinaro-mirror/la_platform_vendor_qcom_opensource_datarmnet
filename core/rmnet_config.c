@@ -57,17 +57,6 @@
  */
 
 /* Local Definitions and Declarations */
-
-enum {
-	IFLA_RMNET_DFC_QOS = __IFLA_RMNET_MAX,
-	IFLA_RMNET_UL_AGG_PARAMS,
-	IFLA_RMNET_UL_AGG_STATE_ID,
-	IFLA_RMNET_IP_ROUTE_CONFIG,
-	IFLA_RMNET_ROUTE_MODE,
-	IFLA_RMNET_IP_ROUTE_PARAMS,
-	__IFLA_RMNET_EXT_MAX,
-};
-
 static const struct nla_policy rmnet_policy[__IFLA_RMNET_EXT_MAX] = {
 	[IFLA_RMNET_MUX_ID] = {
 		.type = NLA_U16
@@ -159,7 +148,11 @@ static int rmnet_register_real_device(struct net_device *real_dev)
 	dev_hold(real_dev);
 
 	for (entry = 0; entry < RMNET_MAX_LOGICAL_EP; entry++)
+	{
 		INIT_HLIST_HEAD(&port->muxed_ep[entry]);
+		INIT_HLIST_HEAD(&port->eth_port.muxed_ep[entry]);
+	}
+
 
 	rc = rmnet_descriptor_init(port);
 	if (rc) {
@@ -402,25 +395,29 @@ static int rmnet_rtnl_validate(struct nlattr *tb[], struct nlattr *data[],
 	struct rmnet_ip_route_config *iproute_cfg;
 	u16 mux_id;
 
-	if (!data)
+	if (!data) {
 		return -EINVAL;
+	}
 
 	if (data[IFLA_RMNET_MUX_ID]) {
 		mux_id = nla_get_u16(data[IFLA_RMNET_MUX_ID]);
-		if (mux_id > (RMNET_MAX_LOGICAL_EP - 1))
+		if (mux_id > (RMNET_MAX_LOGICAL_EP - 1)) {
 			return -ERANGE;
+		}
 	}
 
 	if (data[IFLA_RMNET_UL_AGG_PARAMS]) {
 		agg_params = nla_data(data[IFLA_RMNET_UL_AGG_PARAMS]);
-		if (agg_params->agg_time < 1000000)
+		if (agg_params->agg_time < 1000000) {
 			return -EINVAL;
+		}
 
 		if (data[IFLA_RMNET_UL_AGG_STATE_ID]) {
 			u8 state = nla_get_u8(data[IFLA_RMNET_UL_AGG_STATE_ID]);
 
-			if (state >= RMNET_MAX_AGG_STATE)
+			if (state >= RMNET_MAX_AGG_STATE) {
 				return -ERANGE;
+			}
 		}
 	}
 

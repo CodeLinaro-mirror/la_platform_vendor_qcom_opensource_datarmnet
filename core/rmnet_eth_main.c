@@ -620,6 +620,9 @@ static void rmnet_eth_dellink(struct net_device *dev, struct list_head *head)
 		return;
 
 	port = rmnet_eth_get_port_rtnl(real_dev);
+        if (!port)
+               return;
+
 	mux_id = rmnet_veth_get_mux(dev);
 	ep = rmnet_eth_get_endpoint(port, mux_id);
 	if (ep) {
@@ -659,6 +662,8 @@ static int rmnet_eth_changelink(struct net_device *dev, struct nlattr *tb[],
 		return -ENODEV;
 
 	port = rmnet_eth_get_port_rtnl(real_dev);
+        if (!port)
+               return -ENODEV;
 
 	if (data[IFLA_RMNET_MUX_ID]) {
 		mux_id = nla_get_u16(data[IFLA_RMNET_MUX_ID]);
@@ -701,6 +706,9 @@ static int rmnet_eth_fill_info(struct sk_buff *skb, const struct net_device *dev
 		struct rmnet_port *rport = NULL;
 
 		port = rmnet_eth_get_port_rtnl(real_dev);
+		if (!port)
+                     goto nla_put_failure;
+
 		rport = container_of(port, struct rmnet_port, eth_port);
 		f.flags = rport->data_format;
 	} else {
@@ -748,6 +756,8 @@ static void rmnet_eth_force_unassociate_device(struct net_device *dev)
 	ASSERT_RTNL();
 
 	port = rmnet_eth_get_port_rtnl(dev);
+        if (!port)
+                return;
 
 	hlist_for_each_entry_rcu(ep, &port->muxed_ep[0], hlnode)
 		hlist_del_init_rcu(&ep->hlnode);

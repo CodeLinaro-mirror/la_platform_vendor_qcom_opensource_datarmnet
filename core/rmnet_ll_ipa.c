@@ -1,5 +1,5 @@
 /* Copyright (c) 2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -33,11 +33,19 @@ extern spinlock_t rmnet_ll_tx_lock;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0)
 static void rmnet_ll_ipa_tx_pending(unsigned long data);
+#ifdef DECLARE_TASKLET_OLD
+DECLARE_TASKLET_OLD(tx_pending_task, rmnet_ll_ipa_tx_pending);
+#else
 DECLARE_TASKLET(tx_pending_task, rmnet_ll_ipa_tx_pending, 0);
+#endif
 static void rmnet_ll_ipa_tx_pending(unsigned long data)
 #else
 static void rmnet_ll_ipa_tx_pending(struct tasklet_struct *t);
+#ifdef DECLARE_TASKLET_OLD
+DECLARE_TASKLET_OLD(tx_pending_task, rmnet_ll_ipa_tx_pending);
+#else
 DECLARE_TASKLET(tx_pending_task, rmnet_ll_ipa_tx_pending);
+#endif
 static void rmnet_ll_ipa_tx_pending(struct tasklet_struct *t)
 #endif
 {

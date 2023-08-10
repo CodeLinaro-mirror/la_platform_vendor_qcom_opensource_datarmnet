@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -995,12 +995,14 @@ static int __init rmnet_init(void)
 	if (rc != 0)
 		goto err2;
 
+#ifdef RMNET_LA_PLATFORM
 	rc = rmnet_ll_init();
 	if (rc != 0) {
 		unregister_netdevice_notifier(&rmnet_dev_notifier);
 		rtnl_link_unregister(&rmnet_link_ops);
 		return rc;
 	}
+#endif
 
 	rmnet_core_genl_init();
 
@@ -1022,7 +1024,9 @@ static void __exit rmnet_exit(void)
 	unregister_inet6addr_notifier(&rmnet_addr6_notifier_block);
 	unregister_netdevice_notifier(&rmnet_dev_notifier);
 	rtnl_link_unregister(&rmnet_link_ops);
+#ifdef RMNET_LA_PLATFORM
 	rmnet_ll_exit();
+#endif
 	rmnet_core_genl_deinit();
 
 	module_put(THIS_MODULE);

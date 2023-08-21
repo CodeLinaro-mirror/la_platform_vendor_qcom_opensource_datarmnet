@@ -1061,17 +1061,8 @@ void rmnet_frag_deliver(struct rmnet_frag_descriptor *frag_desc,
 	struct sk_buff *skb;
 
 	skb = rmnet_alloc_skb(frag_desc, port);
-	if (skb) {
-		if (!frag_desc->eth_info.is_eth)
-			rmnet_deliver_skb(skb, port);
-		else {
-			int rc;
-
-			rc = rmnet_ingress_eth_handler(skb, frag_desc->eth_info.eth_ep);
-			if (rc == -1)
-				kfree_skb(skb);
-		}
-	}
+	if (skb)
+		rmnet_deliver_skb(skb, port);
 	rmnet_recycle_frag_descriptor(frag_desc, port);
 }
 EXPORT_SYMBOL(rmnet_frag_deliver);
@@ -1752,6 +1743,46 @@ int rmnet_frag_process_next_hdr_packet(struct rmnet_frag_descriptor *frag_desc,
 rmnet_perf_desc_hook_t rmnet_perf_desc_entry __rcu __read_mostly;
 EXPORT_SYMBOL(rmnet_perf_desc_entry);
 
+static struct sk_buff *rmnet_alloc_skb_eth(struct rmnet_frag_descriptor *frag_desc)
+{
+	struct sk_buff *head_skb;
+	struct rmnet_fragment *frag, *tmp;
+
+	head_skb = alloc_skb(frag_desc->len + RMNET_MAP_DEAGGR_HEADROOM,
+			     GFP_ATOMIC);
+	if (!head_skb)
+		return NULL;
+
+	skb_reserve(head_skb, RMNET_MAP_DEAGGR_HEADROOM);
+
+	/* Add in the page fragments */
+	rmnet_descriptor_for_each_frag_safe(frag, tmp, frag_desc) {
+		skb_put_data(head_skb, skb_frag_address(&frag->frag),
+			     skb_frag_size(&frag->frag));
+	}
+
+	head_skb->dev = frag_desc->dev;
+	head_skb->protocol = htons(ETH_P_MAP);
+
+	return head_skb;
+}
+
+void rmnet_frag_deliver_eth(struct rmnet_frag_descriptor *frag_desc,
+			    struct rmnet_port *port,
+			    struct rmnet_endpoint *eth_ep)
+{
+	struct sk_buff *skb;
+	int rc;
+
+	skb = rmnet_alloc_skb_eth(frag_desc);
+	if (skb) {
+		rc = rmnet_ingress_eth_handler(skb, eth_ep);
+		if (rc == -1)
+			kfree_skb(skb);
+	}
+	rmnet_recycle_frag_descriptor(frag_desc, port);
+}
+
 static void
 __rmnet_frag_ingress_handler(struct rmnet_frag_descriptor *frag_desc,
 			     struct rmnet_port *port)
@@ -1793,14 +1824,13 @@ __rmnet_frag_ingress_handler(struct rmnet_frag_descriptor *frag_desc,
 	if (!ep) {
 		hlist_for_each_entry_rcu(ep, &port->eth_port.muxed_ep[mux_id], hlnode) {
 			if (ep->mux_id == mux_id) {
-				frag_desc->eth_info.is_eth = 1;
-				frag_desc->eth_info.eth_ep = ep;
-				break;
+				frag_desc->dev = port->dev;
+				rmnet_frag_deliver_eth(frag_desc, port, ep);
+				return;
 			}
 		}
 
-		if (!frag_desc->eth_info.is_eth)
-			goto recycle;
+		goto recycle;
 	}
 
 	frag_desc->dev = ep->egress_dev;

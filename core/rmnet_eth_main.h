@@ -28,6 +28,8 @@
 #define RMNET_ETH_PREFIX          "rmnet_eth"
 #define RMNET_ETH_PHY_PREFIX      "rmnet_ipa"
 
+struct rmnet_endpoint;
+
 enum rmnet_eth_drop_reasons {
         RMNET_ETH_RX_BAD_ETH,
         RMNET_ETH_RX_BAD_EP,
@@ -53,11 +55,6 @@ struct rmnet_veth_stats {
 struct rmnet_eth_pcpu_stats {
         struct rmnet_veth_stats stats;
         struct u64_stats_sync syncp;
-};
-
-struct rmnet_eth_frag_info {
-        struct rmnet_endpoint *eth_ep;
-        u8 is_eth;
 };
 
 struct rmnet_eth_priv {

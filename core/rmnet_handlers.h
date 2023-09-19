@@ -24,7 +24,7 @@ enum rmnet_packet_context {
 	RMNET_WQ_CTX,
 };
 
-void rmnet_egress_handler(struct sk_buff *skb, bool low_latency);
+void rmnet_egress_handler(struct sk_buff *skb, bool low_latency, u8 ipsec);
 void rmnet_deliver_skb(struct sk_buff *skb, struct rmnet_port *port);
 void rmnet_deliver_skb_wq(struct sk_buff *skb, struct rmnet_port *port,
 			  enum rmnet_packet_context ctx);

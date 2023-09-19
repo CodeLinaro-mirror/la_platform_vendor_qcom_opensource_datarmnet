@@ -22,7 +22,9 @@
 #include <linux/inet.h>
 #include <net/ip6_checksum.h>
 #include <net/sock.h>
+#include <net/xfrm.h>
 #include <linux/tracepoint.h>
+#include <linux/ipa.h>
 #include "rmnet_private.h"
 #include "rmnet_config.h"
 #include "rmnet_vnd.h"
@@ -383,6 +385,193 @@ free_skb:
 	kfree_skb(skb);
 }
 
+static void rmnet_map_ipsec_record_error_type(struct sk_buff *skb,
+					      struct rmnet_priv *priv)
+{
+	switch(rmnet_map_get_error_type(skb)) {
+	case RMNET_MAP_ERROR_TYPE_NOT_SPEC:
+		priv->stats.et_not_spec++;
+		break;
+	case RMNET_MAP_ERROR_TYPE_IPSEC_ENCAP:
+		priv->stats.et_ipsec_encap++;
+		break;
+	case RMNET_MAP_ERROR_TYPE_IPSEC_DECAP:
+		priv->stats.et_ipsec_decap++;
+		break;
+	default:
+		priv->stats.et_invalid++;
+		break;
+	}
+}
+
+static void rmnet_map_ipsec_record_error_code(struct sk_buff *skb,
+					      struct rmnet_priv *priv)
+{
+	switch(rmnet_map_get_error_code(skb)) {
+	case RMNET_MAP_ERROR_CODE_NO_ERR:
+		priv->stats.ec_no_err++;
+		break;
+	case RMNET_MAP_ERROR_CODE_DUP_SEQ:
+		priv->stats.ec_dup_seq++;
+		break;
+	case RMNET_MAP_ERROR_CODE_OUT_OF_WIN:
+		priv->stats.ec_out_of_win++;
+		break;
+	case RMNET_MAP_ERROR_CODE_AUTH_ERR:
+		priv->stats.ec_auth_err++;
+		break;
+	case RMNET_MAP_ERROR_CODE_INC_PAD:
+		priv->stats.ec_inc_pad++;
+		break;
+	case RMNET_MAP_ERROR_CODE_INC_ESP:
+		priv->stats.ec_inc_esp++;
+		break;
+	case RMNET_MAP_ERROR_CODE_ECN_ERR:
+		priv->stats.ec_ecn_err++;
+		break;
+	case RMNET_MAP_ERROR_CODE_POST_DECAP_NAT:
+		priv->stats.ec_post_decap_nat++;
+		break;
+	case RMNET_MAP_ERROR_CODE_POST_DECAP_INNER_PKT:
+		priv->stats.ec_post_decap_inner_pkt++;
+		break;
+	case RMNET_MAP_ERROR_CODE_POST_DECAP_INNER_FLTR_PKT:
+		priv->stats.ec_post_decap_inner_flter_pkt++;
+		break;
+	case RMNET_MAP_ERROR_CODE_DECAP_SA_DISABLE:
+		priv->stats.ec_decap_sa_disable++;
+		break;
+	case RMNET_MAP_ERROR_CODE_SW_HANDLE:
+		priv->stats.ec_sw_handle++;
+		break;
+	case RMNET_MAP_ERROR_CODE_IN_PKT_VALIDATION:
+		priv->stats.ec_in_pkt_validation++;
+		break;
+	case RMNET_MAP_ERROR_CODE_INPUT_PKT_SA_MISMATCH:
+		priv->stats.ec_input_pkt_sa_mismatch++;
+		break;
+	case RMNET_MAP_ERROR_CODE_FRAG:
+		priv->stats.ec_frag++;
+		break;
+	case RMNET_MAP_ERROR_CODE_DISCARD_RULE:
+		priv->stats.ec_discard_rule++;
+		break;
+	case RMNET_MAP_ERROR_CODE_ENCAP_SA_DISABLE:
+		priv->stats.ec_encap_sa_disable++;
+		break;
+	case RMNET_MAP_ERROR_CODE_SEQ_NUM_OVERFLOW:
+		priv->stats.ec_code_seq_num_overflow++;
+		break;
+	case RMNET_MAP_ERROR_CODE_NEW_HW_DECAP:
+		priv->stats.ec_new_hw_decap++;
+		break;
+	case RMNET_MAP_ERROR_CODE_NEW_HW_ENCAP_EXCEED_MTU:
+		priv->stats.ec_new_hw_encap_exceed_mtu++;
+		break;
+	default:
+		priv->stats.ec_invalid++;
+		break;
+	}
+}
+
+static void rmnet_map_ipsec_ingress_handler(struct sk_buff *skb,
+					    struct rmnet_port *port)
+{
+	struct rmnet_map_header *qmap;
+	struct rmnet_endpoint *ep;
+	struct rmnet_priv *priv;
+	u16 len, pad;
+	u8 mux_id;
+
+	qmap = (struct rmnet_map_header *)rmnet_map_data_ptr(skb);
+	if (qmap->cd_bit) {
+		port->stats.dl_ipsec_invalid_cmd++;
+		goto free_skb;
+	}
+
+	mux_id = qmap->mux_id;
+
+	if (mux_id >= RMNET_MAX_LOGICAL_EP) {
+		port->stats.dl_ipsec_invalid_mux++;
+		goto free_skb;
+	}
+
+	ep = rmnet_get_endpoint(port, mux_id);
+	if (!ep) {
+		port->stats.dl_ipsec_invalid_endpoint++;
+		goto free_skb;
+	}
+
+	pad = qmap->pad_len;
+	len = ntohs(qmap->pkt_len) - pad;
+	skb->dev = ep->egress_dev;
+	priv = netdev_priv(skb->dev);
+
+	if (skb_get_rx_queue(skb) == IPA_RMNET_RX_QUEUE_IPSEC) {
+		if (qmap->next_hdr &&
+		    (port->data_format & RMNET_PRIV_FLAGS_INGRESS_MAP_CKSUMV5)) {
+			if (rmnet_map_get_next_hdr_type(skb) !=
+			    RMNET_MAP_HEADER_TYPE_CSUM_OFFLOAD) {
+				priv->stats.dl1_hdr_type_err++;
+				goto free_skb;
+			}
+
+			if (unlikely(!(skb->dev->features & NETIF_F_RXCSUM))) {
+				priv->stats.csum_sw++;
+			} else if (rmnet_map_get_csum_valid(skb)) {
+				priv->stats.csum_ok++;
+				skb->ip_summed = CHECKSUM_UNNECESSARY;
+			} else {
+				priv->stats.csum_validation_failed++;
+			}
+
+			pskb_pull(skb, (sizeof(struct rmnet_map_header) +
+					sizeof(struct rmnet_map_v5_csum_header)));
+		} else {
+			pskb_pull(skb, sizeof(struct rmnet_map_header));
+		}
+
+		priv->stats.dl1_ok++;
+	} else {
+		if (qmap->next_hdr &&
+		    (rmnet_map_get_next_hdr_type(skb) != RMNET_MAP_HEADER_TYPE_ERROR)) {
+			priv->stats.dl2_hdr_type_err++;
+			goto free_skb;
+		}
+
+		rmnet_map_ipsec_record_error_type(skb, priv);
+		rmnet_map_ipsec_record_error_code(skb, priv);
+
+		pskb_pull(skb, (sizeof(struct rmnet_map_header) +
+				sizeof(struct rmnet_map_v5_error_header)));
+
+		priv->stats.dl2_ok++;
+	}
+
+	rmnet_set_skb_proto(skb);
+	pskb_trim(skb, len);
+
+	rmnet_deliver_skb(skb, port);
+	return;
+
+free_skb:
+	kfree_skb(skb);
+}
+
+static void rmnet_ipsec_ingress_handler(struct sk_buff *skb,
+					struct rmnet_port *port)
+{
+	while (skb) {
+		struct sk_buff *skb_frag = skb_shinfo(skb)->frag_list;
+
+		skb_shinfo(skb)->frag_list = NULL;
+		port->stats.dl_ipsec++;
+		rmnet_map_ipsec_ingress_handler(skb, port);
+
+		skb = skb_frag;
+	}
+}
+
 int (*rmnet_perf_deag_entry)(struct sk_buff *skb,
 			     struct rmnet_port *port) __rcu __read_mostly;
 EXPORT_SYMBOL(rmnet_perf_deag_entry);
@@ -407,6 +596,15 @@ rmnet_map_ingress_handler(struct sk_buff *skb,
 	if ((port->data_format & RMNET_INGRESS_FORMAT_IP_ROUTE) &&
 	    (skb_get_rx_queue(skb) == port->ip_route_params.rx_queue)) {
 		rmnet_ip_route_rcv(skb, port);
+		return;
+	}
+
+	if ((skb->dev->features & NETIF_F_HW_ESP) &&
+	    (skb->dev->hw_enc_features & NETIF_F_HW_ESP) &&
+	    (skb_rx_queue_recorded(skb) &&
+	     ((skb_get_rx_queue(skb) == IPA_RMNET_RX_QUEUE_IPSEC) ||
+	      (skb_get_rx_queue(skb) == IPA_RMNET_RX_QUEUE_IPSEC_ERROR)))) {
+		rmnet_ipsec_ingress_handler(skb, port);
 		return;
 	}
 
@@ -461,7 +659,7 @@ next_skb:
 static int rmnet_map_egress_handler(struct sk_buff *skb,
 				    struct rmnet_port *port, u8 mux_id,
 				    struct net_device *orig_dev,
-				    bool low_latency)
+				    bool low_latency, u8 ipsec)
 {
 	int required_headroom, additional_header_len, csum_type, tso = 0;
 	struct rmnet_map_header *map_header;
@@ -471,7 +669,9 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 	required_headroom = sizeof(struct rmnet_map_header);
 	csum_type = 0;
 
-	if (port->data_format & RMNET_FLAGS_EGRESS_MAP_CKSUMV4) {
+	if (ipsec) {
+		/* always use MAPv1 format */
+	} else if (port->data_format & RMNET_FLAGS_EGRESS_MAP_CKSUMV4) {
 		additional_header_len = sizeof(struct rmnet_map_ul_csum_header);
 		csum_type = RMNET_FLAGS_EGRESS_MAP_CKSUMV4;
 	} else if ((port->data_format & RMNET_PRIV_FLAGS_EGRESS_MAP_CKSUMV5) ||
@@ -514,11 +714,14 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 	if (!map_header)
 		return -ENOMEM;
 
+	if (ipsec)
+		map_header->next_hdr = 0;
+
 	map_header->mux_id = mux_id;
 
 	if (port->data_format & RMNET_EGRESS_FORMAT_AGGREGATION) {
 		if (state->params.agg_count < 2 ||
-		    rmnet_map_tx_agg_skip(skb, required_headroom) || tso)
+		    rmnet_map_tx_agg_skip(skb, required_headroom) || tso || ipsec)
 			goto done;
 
 		rmnet_map_tx_aggregate(skb, port, low_latency);
@@ -601,7 +804,7 @@ EXPORT_SYMBOL(rmnet_rx_handler);
  * for egress device configured in logical endpoint. Packet is then transmitted
  * on the egress device.
  */
-void rmnet_egress_handler(struct sk_buff *skb, bool low_latency)
+void rmnet_egress_handler(struct sk_buff *skb, bool low_latency, u8 ipsec)
 {
 	struct net_device *orig_dev;
 	struct rmnet_port *port;
@@ -632,7 +835,7 @@ void rmnet_egress_handler(struct sk_buff *skb, bool low_latency)
 		goto direct_xmit;
 	}
 	err = rmnet_map_egress_handler(skb, port, mux_id, orig_dev,
-				       low_latency);
+				       low_latency, ipsec);
 	if (err == -ENOMEM || err == -EINVAL) {
 		goto drop;
 	} else if (err == -EINPROGRESS) {
@@ -644,15 +847,23 @@ direct_xmit:
 	trace_rmnet_skb_egress_exit(skb);
 	rmnet_vnd_tx_fixup(orig_dev, skb_len);
 
-	if (low_latency) {
+	if (low_latency && !ipsec) {
 		if (rmnet_ll_send_skb(skb)) {
 			/* Drop but no need to free. Above API handles that */
 			this_cpu_inc(priv->pcpu_stats->stats.tx_drops);
-			return;
 		}
-	} else {
-		dev_queue_xmit(skb);
+		return;
 	}
+
+	if (ipsec == XFRM_DEV_OFFLOAD_OUT) {
+		skb_set_queue_mapping(skb, IPA_RMNET_TX_QUEUE_IPSEC_ENCAP);
+		priv->stats.ul1_ok++;
+	} else if (ipsec == XFRM_DEV_OFFLOAD_IN) {
+		skb_set_queue_mapping(skb, IPA_RMNET_TX_QUEUE_IPSEC_DECAP);
+		priv->stats.ul2_ok++;
+	}
+
+	dev_queue_xmit(skb);
 
 	return;
 

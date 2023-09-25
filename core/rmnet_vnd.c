@@ -24,8 +24,10 @@
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
 #include <linux/ethtool.h>
+#include <linux/ipa.h>
 #include <net/pkt_sched.h>
 #include <net/ipv6.h>
+#include <net/xfrm.h>
 #include "rmnet_config.h"
 #include "rmnet_handlers.h"
 #include "rmnet_private.h"
@@ -87,6 +89,7 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 	rmnet_perf_tether_egress_hook_t rmnet_perf_tether_egress;
 	bool low_latency = false;
 	bool need_to_drop = false;
+	u8 ipsec = 0;
 
 	priv = netdev_priv(dev);
 	if (priv->real_dev) {
@@ -110,8 +113,15 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 		if (RMNET_APS_LLC(skb->priority))
 			low_latency = true;
 
+		if ((priv->real_dev->features & NETIF_F_HW_ESP) &&
+		    (priv->real_dev->hw_enc_features & NETIF_F_HW_ESP) &&
+		    (IPA_IPSEC_SKB_CB(skb)->magic == IPA_IPSEC_SKB_MAGIC)) {
+			ipsec = IPA_IPSEC_SKB_CB(skb)->sa_dir;
+			priv->stats.ul_ipsec++;
+		}
+
 		if ((low_latency || RMNET_APS_LLB(skb->priority)) &&
-		    skb_is_gso(skb)) {
+		    skb_is_gso(skb) && !ipsec) {
 			netdev_features_t features;
 			struct sk_buff *segs, *tmp;
 
@@ -130,9 +140,9 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 				tmp = skb->next;
 				skb->dev = dev;
 				priv->stats.ll_tso_segs++;
-				rmnet_egress_handler(skb, low_latency);
+				rmnet_egress_handler(skb, low_latency, ipsec);
 			}
-		} else if (!low_latency && skb_is_gso(skb)) {
+		} else if (!low_latency && skb_is_gso(skb) && !ipsec) {
 			u64 gso_limit = priv->real_dev->gso_max_size ? : 1;
 			u16 gso_goal = 0;
 			netdev_features_t features = NETIF_F_SG;
@@ -144,7 +154,7 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 
 			if (skb->len < gso_limit || gso_limit > 65535) {
 				priv->stats.tso_segment_skip++;
-				rmnet_egress_handler(skb, low_latency);
+				rmnet_egress_handler(skb, low_latency, ipsec);
 			} else {
 				do_div(gso_limit, skb_shinfo(skb)->gso_size);
 				gso_goal = gso_limit * skb_shinfo(skb)->gso_size;
@@ -156,7 +166,7 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 					skb_shinfo(skb)->gso_type = orig_gso_type;
 
 					priv->stats.tso_segment_fail++;
-					rmnet_egress_handler(skb, low_latency);
+					rmnet_egress_handler(skb, low_latency, ipsec);
 				} else {
 					consume_skb(skb);
 
@@ -168,12 +178,12 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 						skb_shinfo(skb)->gso_type = orig_gso_type;
 
 						priv->stats.tso_segment_success++;
-						rmnet_egress_handler(skb, low_latency);
+						rmnet_egress_handler(skb, low_latency, ipsec);
 					}
 				}
 			}
 		} else {
-			rmnet_egress_handler(skb, low_latency);
+			rmnet_egress_handler(skb, low_latency, ipsec);
 		}
 		qmi_rmnet_burst_fc_check(dev, ip_type, mark, len);
 		qmi_rmnet_work_maybe_restart(rmnet_get_rmnet_port(dev));
@@ -505,6 +515,38 @@ static const char rmnet_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"APS priority packets",
 	"IP ROUTE transmits",
 	"IP ROUTE receives",
+	"IPSEC ET not specified",
+	"IPSEC ET IPsec encapsulation",
+	"IPSEC ET IPsec decapsulation",
+	"IPSEC ET invalid",
+	"IPSEC EC no error",
+	"IPSEC EC dup seq number",
+	"IPSEC EC out of window",
+	"IPSEC EC auth error",
+	"IPSEC EC incorrect padding",
+	"IPSEC EC inc ESP trl nxthdr prot",
+	"IPSEC EC ECN error",
+	"IPSEC EC PD NAT",
+	"IPSEC EC PD Inner pkt exception",
+	"IPSEC EC PD Inner pkt fltr excep",
+	"IPSEC EC Decap SA Disabled",
+	"IPSEC EC SW handling",
+	"IPSEC EC Input packet Validation",
+	"IPSEC EC Innet pkt SA mismatch",
+	"IPSEC EC Frag",
+	"IPSEC EC Discard Rule",
+	"IPSEC EC Encap SA Disabled",
+	"IPSEC EC Seq Num Overflow",
+	"IPSEC EC NHW Ex Decap",
+	"IPSEC EC NHW Ex Encap Exceed MTU",
+	"IPSEC EC invalid",
+	"IPSEC DL1 header type error",
+	"IPSEC DL1 ok",
+	"IPSEC DL2 header type error",
+	"IPSEC DL2 ok",
+	"IPSEC UL offload",
+	"IPSEC UL1 ok",
+	"IPSEC UL2 ok",
 };
 
 static const char rmnet_port_gstrings_stats[][ETH_GSTRING_LEN] = {
@@ -535,6 +577,10 @@ static const char rmnet_port_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"DL chaining frags [8-11]",
 	"DL chaining frags [12-15]",
 	"DL chaining frags = 16",
+	"IPSEC DL offload",
+	"IPSEC DL invalid command",
+	"IPSEC DL invalid mux",
+	"IPSEC DL invalid endpoint",
 };
 
 static const char rmnet_ll_gstrings_stats[][ETH_GSTRING_LEN] = {
@@ -662,6 +708,134 @@ static const struct ethtool_ops rmnet_ethtool_ops = {
 	.nway_reset = rmnet_stats_reset,
 };
 
+static bool rmnet_xfrm_is_valid_state(struct xfrm_state *x)
+{
+	struct rmnet_priv *priv = NULL;
+
+	if (!x || !x->xso.dev || !netif_is_rmnet(x->xso.dev) ||
+	    (!(x->xso.dev->features & NETIF_F_HW_ESP)) ||
+	    (!(x->xso.dev->hw_enc_features & NETIF_F_HW_ESP)))
+		return false;
+
+	priv = netdev_priv(x->xso.dev);
+	if ((!(priv->real_dev->features & NETIF_F_HW_ESP)) ||
+	    (!(priv->real_dev->hw_enc_features & NETIF_F_HW_ESP)) ||
+	    !priv->real_dev->xfrmdev_ops)
+		return false;
+
+	return true;
+}
+
+static bool rmnet_xfrm_is_valid_policy(struct xfrm_policy *x)
+{
+	struct rmnet_priv *priv = NULL;
+
+	if (!x || !x->xdo.dev || !netif_is_rmnet(x->xdo.dev) ||
+	    (!(x->xdo.dev->features & NETIF_F_HW_ESP)) ||
+	    (!(x->xdo.dev->hw_enc_features & NETIF_F_HW_ESP)))
+		return false;
+
+	priv = netdev_priv(x->xdo.dev);
+	if ((!(priv->real_dev->features & NETIF_F_HW_ESP)) ||
+	    (!(priv->real_dev->hw_enc_features & NETIF_F_HW_ESP)) ||
+	    !priv->real_dev->xfrmdev_ops)
+		return false;
+
+	return true;
+}
+
+static const struct xfrmdev_ops *rmnet_real_dev_xfrmdev_ops(struct net_device *dev)
+{
+	struct rmnet_priv *priv = NULL;
+
+	priv = netdev_priv(dev);
+	return priv->real_dev->xfrmdev_ops;
+}
+
+static int rmnet_xfrm_add_state(struct xfrm_state *x)
+{
+	if (!rmnet_xfrm_is_valid_state(x))
+		return -EINVAL;
+
+	return rmnet_real_dev_xfrmdev_ops(x->xso.dev)->xdo_dev_state_add(x);
+}
+
+static void rmnet_xfrm_del_state(struct xfrm_state *x)
+{
+	if (!rmnet_xfrm_is_valid_state(x))
+		return;
+
+	rmnet_real_dev_xfrmdev_ops(x->xso.dev)->xdo_dev_state_delete(x);
+}
+
+static void rmnet_xfrm_free_state(struct xfrm_state *x)
+{
+	if (!rmnet_xfrm_is_valid_state(x))
+		return;
+
+	rmnet_real_dev_xfrmdev_ops(x->xso.dev)->xdo_dev_state_free(x);
+}
+
+static bool rmnet_xfrm_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
+{
+	if (!rmnet_xfrm_is_valid_state(x))
+		return false;
+
+	return rmnet_real_dev_xfrmdev_ops(x->xso.dev)->xdo_dev_offload_ok(skb, x);
+}
+
+static void rmnet_xfrm_state_advance_esn(struct xfrm_state *x)
+{
+	if (!rmnet_xfrm_is_valid_state(x))
+		return;
+
+	rmnet_real_dev_xfrmdev_ops(x->xso.dev)->xdo_dev_state_advance_esn(x);
+}
+
+static void rmnet_xfrm_state_update_curlft(struct xfrm_state *x)
+{
+	if (!rmnet_xfrm_is_valid_state(x))
+		return;
+
+	rmnet_real_dev_xfrmdev_ops(x->xso.dev)->xdo_dev_state_update_curlft(x);
+}
+
+static int rmnet_xfrm_policy_add(struct xfrm_policy *x)
+{
+	if (!rmnet_xfrm_is_valid_policy(x))
+		return -EINVAL;
+
+	return rmnet_real_dev_xfrmdev_ops(x->xdo.dev)->xdo_dev_policy_add(x);
+}
+
+static void rmnet_xfrm_policy_delete(struct xfrm_policy *x)
+{
+	if (!rmnet_xfrm_is_valid_policy(x))
+		return;
+
+	rmnet_real_dev_xfrmdev_ops(x->xdo.dev)->xdo_dev_policy_delete(x);
+}
+
+static void rmnet_xfrm_policy_free(struct xfrm_policy *x)
+{
+	if (!rmnet_xfrm_is_valid_policy(x))
+		return;
+
+	rmnet_real_dev_xfrmdev_ops(x->xdo.dev)->xdo_dev_policy_free(x);
+}
+
+static const struct xfrmdev_ops rmnet_xfrmdev_ops = {
+	.xdo_dev_state_add = rmnet_xfrm_add_state,
+	.xdo_dev_state_delete = rmnet_xfrm_del_state,
+	.xdo_dev_state_free = rmnet_xfrm_free_state,
+	.xdo_dev_offload_ok = rmnet_xfrm_offload_ok,
+	.xdo_dev_state_advance_esn = rmnet_xfrm_state_advance_esn,
+	.xdo_dev_state_update_curlft = rmnet_xfrm_state_update_curlft,
+	.xdo_dev_policy_add = rmnet_xfrm_policy_add,
+	.xdo_dev_policy_delete = rmnet_xfrm_policy_delete,
+	.xdo_dev_policy_free = rmnet_xfrm_policy_free,
+};
+
 /* Called by kernel whenever a new rmnet<n> device is created. Sets MTU,
  * flags, ARP type, needed headroom, etc...
  */
@@ -705,6 +879,14 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 	rmnet_dev->hw_features |= NETIF_F_GRO_HW;
 	rmnet_dev->hw_features |= NETIF_F_GSO_UDP_L4;
 	rmnet_dev->hw_features |= NETIF_F_ALL_TSO;
+
+	if ((real_dev->features & NETIF_F_HW_ESP) &&
+	    (real_dev->hw_enc_features & NETIF_F_HW_ESP)) {
+		rmnet_dev->xfrmdev_ops = &rmnet_xfrmdev_ops;
+
+		rmnet_dev->features |= NETIF_F_HW_ESP;
+		rmnet_dev->hw_enc_features |= NETIF_F_HW_ESP;
+	}
 
 	priv->real_dev = real_dev;
 

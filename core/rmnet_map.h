@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -50,6 +50,7 @@ enum rmnet_map_v5_header_type {
 	RMNET_MAP_HEADER_TYPE_COALESCING = 0x1,
 	RMNET_MAP_HEADER_TYPE_CSUM_OFFLOAD = 0x2,
 	RMNET_MAP_HEADER_TYPE_TSO = 0x3,
+	RMNET_MAP_HEADER_TYPE_ERROR = 0x4,
 	RMNET_MAP_HEADER_TYPE_ENUM_LENGTH
 };
 
@@ -67,6 +68,35 @@ enum rmnet_map_v5_close_value {
 	RMNET_MAP_COAL_CLOSE_HW_BYTE,
 	RMNET_MAP_COAL_CLOSE_HW_TIME,
 	RMNET_MAP_COAL_CLOSE_HW_EVICT,
+};
+
+enum rmnet_map_v5_error_type {
+	RMNET_MAP_ERROR_TYPE_NOT_SPEC = 0,
+	RMNET_MAP_ERROR_TYPE_IPSEC_ENCAP = 1,
+	RMNET_MAP_ERROR_TYPE_IPSEC_DECAP = 2,
+};
+
+enum rmnet_map_v5_error_code {
+	RMNET_MAP_ERROR_CODE_NO_ERR = 0,
+	RMNET_MAP_ERROR_CODE_DUP_SEQ = 1,
+	RMNET_MAP_ERROR_CODE_OUT_OF_WIN = 2,
+	RMNET_MAP_ERROR_CODE_AUTH_ERR = 3,
+	RMNET_MAP_ERROR_CODE_INC_PAD = 4,
+	RMNET_MAP_ERROR_CODE_INC_ESP = 5,
+	RMNET_MAP_ERROR_CODE_ECN_ERR = 6,
+	RMNET_MAP_ERROR_CODE_POST_DECAP_NAT = 7,
+	RMNET_MAP_ERROR_CODE_POST_DECAP_INNER_PKT = 8,
+	RMNET_MAP_ERROR_CODE_POST_DECAP_INNER_FLTR_PKT = 9,
+	RMNET_MAP_ERROR_CODE_DECAP_SA_DISABLE = 32,
+	RMNET_MAP_ERROR_CODE_SW_HANDLE = 33,
+	RMNET_MAP_ERROR_CODE_IN_PKT_VALIDATION = 34,
+	RMNET_MAP_ERROR_CODE_INPUT_PKT_SA_MISMATCH = 35,
+	RMNET_MAP_ERROR_CODE_FRAG = 36,
+	RMNET_MAP_ERROR_CODE_DISCARD_RULE = 64,
+	RMNET_MAP_ERROR_CODE_ENCAP_SA_DISABLE = 65,
+	RMNET_MAP_ERROR_CODE_SEQ_NUM_OVERFLOW = 66,
+	RMNET_MAP_ERROR_CODE_NEW_HW_DECAP = 134,
+	RMNET_MAP_ERROR_CODE_NEW_HW_ENCAP_EXCEED_MTU = 135,
 };
 
 /* Main QMAP header */
@@ -122,6 +152,16 @@ struct rmnet_map_v5_tso_header {
 	u8  zero_csum:1;
 	u8  ip_id_cfg:1;
 	__be16 segment_size;
+} __aligned(1);
+
+struct rmnet_map_v5_error_header {
+	u8  next_hdr:1;
+	u8  header_type:7;
+	u8  hw_reserved:7;
+	u8  csum_valid:1;
+	u8  error_type;
+	u8  error_code;
+	__be32 error_info;
 } __aligned(1);
 
 /* QMAP v4 headers */
@@ -255,6 +295,22 @@ static inline bool rmnet_map_get_csum_valid(struct sk_buff *skb)
 
 	data += sizeof(struct rmnet_map_header);
 	return ((struct rmnet_map_v5_csum_header *)data)->csum_valid_required;
+}
+
+static inline u8 rmnet_map_get_error_type(struct sk_buff *skb)
+{
+	unsigned char *data = rmnet_map_data_ptr(skb);
+
+	data += sizeof(struct rmnet_map_header);
+	return ((struct rmnet_map_v5_error_header *)data)->error_type;
+}
+
+static inline u8 rmnet_map_get_error_code(struct sk_buff *skb)
+{
+	unsigned char *data = rmnet_map_data_ptr(skb);
+
+	data += sizeof(struct rmnet_map_header);
+	return ((struct rmnet_map_v5_error_header *)data)->error_code;
 }
 
 struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb,

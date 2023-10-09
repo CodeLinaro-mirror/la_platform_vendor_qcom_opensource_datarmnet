@@ -228,6 +228,9 @@ static void rmnet_ip_route_rcv(struct sk_buff *skb, struct rmnet_port *port)
 		if (!ep)
 			goto drop_skb;
 
+		if (ep->call_type == RMNET_IP_ROUTE_CALL_TYPE_IP)
+			break;
+
 		proto = ip6h->nexthdr;
 		ip_len = ipv6_skip_exthdr(skb, sizeof(*ip6h), &proto,
 					  &frag_off);

@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,6 +20,7 @@
 #include <linux/netlink.h>
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
+#include <linux/xarray.h>
 #include "rmnet_config.h"
 #include "rmnet_handlers.h"
 #include "rmnet_vnd.h"
@@ -81,6 +82,9 @@ static const struct nla_policy rmnet_policy[__IFLA_RMNET_EXT_MAX] = {
 	},
 	[IFLA_RMNET_IP_ROUTE_PARAMS] = {
 		.len = sizeof(struct rmnet_ip_route_params)
+	},
+	[IFLA_RMNET_QUEUE] = {
+		.len = sizeof(struct rmnet_queue_mapping)
 	},
 };
 
@@ -164,6 +168,66 @@ static int rmnet_register_real_device(struct net_device *real_dev)
 	rmnet_map_cmd_init(port);
 
 	netdev_dbg(real_dev, "registered with rmnet\n");
+	return 0;
+}
+
+static int rmnet_update_queue_map(struct net_device *dev, u8 operation,
+				  u8 txqueue, u32 mark,
+				  struct netlink_ext_ack *extack)
+{
+	struct rmnet_priv *priv = netdev_priv(dev);
+	struct netdev_queue *q;
+	void *p;
+	u8 txq;
+
+	if (unlikely(txqueue >= dev->num_tx_queues)) {
+		NL_SET_ERR_MSG_MOD(extack, "invalid txqueue");
+		return -EINVAL;
+	}
+
+	switch (operation) {
+	case RMNET_QUEUE_MAPPING_ADD:
+		p = xa_store(&priv->queue_map, mark, xa_mk_value(txqueue),
+			     GFP_ATOMIC);
+		if (xa_is_err(p)) {
+			NL_SET_ERR_MSG_MOD(extack, "unable to add mapping");
+			return xa_err(p);
+		}
+		break;
+	case RMNET_QUEUE_MAPPING_REMOVE:
+		p = xa_erase(&priv->queue_map, mark);
+		if (xa_is_err(p)) {
+			NL_SET_ERR_MSG_MOD(extack, "unable to remove mapping");
+			return xa_err(p);
+		}
+		break;
+	case RMNET_QUEUE_ENABLE:
+	case RMNET_QUEUE_DISABLE:
+		p = xa_load(&priv->queue_map, mark);
+		if (p && xa_is_value(p)) {
+			txq = xa_to_value(p);
+
+			q = netdev_get_tx_queue(dev, txq);
+			if (unlikely(!q)) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "unsupported queue mapping");
+				return -EINVAL;
+			}
+
+			if (operation == RMNET_QUEUE_ENABLE)
+				netif_tx_wake_queue(q);
+			else
+				netif_tx_stop_queue(q);
+		} else {
+			NL_SET_ERR_MSG_MOD(extack, "invalid queue mapping");
+			return -EINVAL;
+		}
+		break;
+	default:
+		NL_SET_ERR_MSG_MOD(extack, "unsupported queue operation");
+		return -EOPNOTSUPP;
+	}
+
 	return 0;
 }
 
@@ -268,8 +332,25 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 		}
 	}
 
+	if (data[IFLA_RMNET_QUEUE]) {
+		struct rmnet_queue_mapping *queue_map;
+
+		queue_map = nla_data(data[IFLA_RMNET_QUEUE]);
+		err = rmnet_update_queue_map(dev, queue_map->operation,
+					     queue_map->txqueue,
+					     queue_map->mark, extack);
+		if (err < 0)
+			goto err2;
+
+		netdev_dbg(dev, "op %02x txq %02x mark %08x\n",
+			   queue_map->operation, queue_map->txqueue,
+			   queue_map->mark);
+	}
+
 	return 0;
 
+err2:
+	hlist_del_init_rcu(&ep->hlnode);
 err1:
 	rmnet_unregister_real_device(real_dev, port);
 err0:
@@ -537,6 +618,21 @@ static int rmnet_changelink(struct net_device *dev, struct nlattr *tb[],
 			       sizeof(*ip_route_params));
 		}
 	}
+	if (data[IFLA_RMNET_QUEUE]) {
+		struct rmnet_queue_mapping *queue_map;
+		int err;
+
+		queue_map = nla_data(data[IFLA_RMNET_QUEUE]);
+		err = rmnet_update_queue_map(dev, queue_map->operation,
+					     queue_map->txqueue,
+					     queue_map->mark, extack);
+		if (err < 0)
+			return err;
+
+		netdev_dbg(dev, "op %02x txq %02x mark %08x\n",
+			   queue_map->operation, queue_map->txqueue,
+			   queue_map->mark);
+	}
 
 	return rc;
 }
@@ -559,7 +655,9 @@ static size_t rmnet_get_size(const struct net_device *dev)
 		/* IFLA_RMNET_ROUTE_MODE */
 		nla_total_size(1) +
 		/* IFLA_RMNET_IP_ROUTE_PARAMS */
-		nla_total_size(sizeof(struct rmnet_ip_route_params));
+		nla_total_size(sizeof(struct rmnet_ip_route_params)) +
+		/* IFLA_RMNET_QUEUE */
+		nla_total_size(sizeof(struct rmnet_queue_mapping));
 }
 
 static int rmnet_fill_info(struct sk_buff *skb, const struct net_device *dev)

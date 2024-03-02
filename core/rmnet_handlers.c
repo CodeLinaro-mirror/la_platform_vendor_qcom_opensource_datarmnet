@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -260,7 +260,7 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 	}
 
 	if (port->data_format & RMNET_INGRESS_FORMAT_PS)
-		qmi_rmnet_work_maybe_restart(port);
+		qmi_rmnet_work_maybe_restart(port, NULL, skb_peek(&list));
 
 	rmnet_deliver_skb_list(&list, port);
 	return;
@@ -368,7 +368,7 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 	}
 
 	if (port->data_format & RMNET_INGRESS_FORMAT_PS)
-		qmi_rmnet_work_maybe_restart(port);
+		qmi_rmnet_work_maybe_restart(port, NULL, NULL);
 
 	state = &port->agg_state[(low_latency) ? RMNET_LL_AGG_STATE :
 				 RMNET_DEFAULT_AGG_STATE];
@@ -445,7 +445,11 @@ rx_handler_result_t rmnet_rx_handler(struct sk_buff **pskb)
 	dev = skb->dev;
 	port = rmnet_get_port(dev);
 	if (unlikely(!port)) {
+#if (KERNEL_VERSION(6, 0, 0) < LINUX_VERSION_CODE)
+		dev_core_stats_rx_nohandler_inc(skb->dev);
+#else
 		atomic_long_inc(&skb->dev->rx_nohandler);
+#endif
 		kfree_skb(skb);
 		goto done;
 	}
@@ -476,6 +480,20 @@ done:
 	return RX_HANDLER_CONSUMED;
 }
 EXPORT_SYMBOL(rmnet_rx_handler);
+
+rx_handler_result_t rmnet_rx_priv_handler(struct sk_buff **pskb)
+{
+	struct sk_buff *skb = *pskb;
+	rx_handler_result_t rc = RX_HANDLER_PASS;
+
+	rmnet_module_hook_wlan_ingress_rx_handler(&rc, pskb);
+	if (rc != RX_HANDLER_PASS)
+		return rc;
+
+	rmnet_module_hook_perf_ingress_rx_handler(skb);
+
+	return RX_HANDLER_PASS;
+}
 
 /* Modifies packet as per logical endpoint configuration and egress data format
  * for egress device configured in logical endpoint. Packet is then transmitted

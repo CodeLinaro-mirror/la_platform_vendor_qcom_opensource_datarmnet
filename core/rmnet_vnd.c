@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -208,7 +208,7 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 			rmnet_egress_handler(skb, low_latency);
 		}
 		qmi_rmnet_burst_fc_check(dev, ip_type, mark, len);
-		qmi_rmnet_work_maybe_restart(rmnet_get_rmnet_port(dev));
+		qmi_rmnet_work_maybe_restart(rmnet_get_rmnet_port(dev), NULL, NULL);
 	} else {
 		this_cpu_inc(priv->pcpu_stats->stats.tx_drops);
 		kfree_skb(skb);
@@ -574,6 +574,7 @@ static const char rmnet_port_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"DL chaining frags [8-11]",
 	"DL chaining frags [12-15]",
 	"DL chaining frags = 16",
+	"PB Byte Marker Count",
 };
 
 static const char rmnet_ll_gstrings_stats[][ETH_GSTRING_LEN] = {
@@ -709,7 +710,7 @@ void rmnet_vnd_setup(struct net_device *rmnet_dev)
 	rmnet_dev->netdev_ops = &rmnet_vnd_ops;
 	rmnet_dev->mtu = RMNET_DFLT_PACKET_SIZE;
 	rmnet_dev->needed_headroom = RMNET_NEEDED_HEADROOM;
-	random_ether_addr(rmnet_dev->perm_addr);
+	eth_random_addr(rmnet_dev->perm_addr);
 	rmnet_dev->tx_queue_len = RMNET_TX_QUEUE_LEN;
 
 	/* Raw IP mode */
@@ -806,5 +807,5 @@ void rmnet_vnd_reset_mac_addr(struct net_device *dev)
 	if (dev->netdev_ops != &rmnet_vnd_ops)
 		return;
 
-	random_ether_addr(dev->perm_addr);
+	eth_random_addr(dev->perm_addr);
 }

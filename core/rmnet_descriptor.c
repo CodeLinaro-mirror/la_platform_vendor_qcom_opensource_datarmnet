@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -33,6 +33,9 @@
 			       sizeof(struct rmnet_map_header) + \
 			       sizeof(struct rmnet_map_control_command_header))
 #define RMNET_DL_IND_TRL_SIZE (sizeof(struct rmnet_map_dl_ind_trl) + \
+			       sizeof(struct rmnet_map_header) + \
+			       sizeof(struct rmnet_map_control_command_header))
+#define RMNET_PB_IND_HDR_SIZE (sizeof(struct rmnet_map_pb_ind_hdr) + \
 			       sizeof(struct rmnet_map_header) + \
 			       sizeof(struct rmnet_map_control_command_header))
 
@@ -447,6 +450,36 @@ static void rmnet_frag_send_ack(struct rmnet_map_header *qmap,
 }
 
 static void
+rmnet_frag_process_pb_ind(struct rmnet_frag_descriptor *frag_desc,
+			  struct rmnet_map_control_command_header *cmd,
+			  struct rmnet_port *port,
+			  u16 cmd_len)
+{
+	struct rmnet_map_pb_ind_hdr *pbhdr, __pbhdr;
+	u32 offset = sizeof(struct rmnet_map_header);
+	u32 data_format;
+	bool is_dl_mark_v2;
+
+	if (cmd_len + offset < RMNET_PB_IND_HDR_SIZE)
+		return;
+
+	data_format = port->data_format;
+	is_dl_mark_v2 = data_format & RMNET_INGRESS_FORMAT_DL_MARKER_V2;
+	pbhdr = rmnet_frag_header_ptr(frag_desc, offset + sizeof(*cmd),
+				      sizeof(*pbhdr), &__pbhdr);
+	if (!pbhdr)
+		return;
+
+	port->stats.pb_marker_count++;
+
+	/* If a target is taking frag path, we can assume DL marker v2 is in
+	 * play
+	 */
+	if (is_dl_mark_v2)
+		rmnet_map_pb_ind_notify(port, pbhdr);
+}
+
+static void
 rmnet_frag_process_flow_start(struct rmnet_frag_descriptor *frag_desc,
 			      struct rmnet_map_control_command_header *cmd,
 			      struct rmnet_port *port,
@@ -572,6 +605,9 @@ int rmnet_frag_flow_command(struct rmnet_frag_descriptor *frag_desc,
 		rmnet_frag_process_flow_end(frag_desc, cmd, port, pkt_len);
 		break;
 
+	case RMNET_MAP_COMMAND_PB_BYTES:
+		rmnet_frag_process_pb_ind(frag_desc, cmd, port, pkt_len);
+		break;
 	default:
 		return 1;
 	}
@@ -1853,7 +1889,11 @@ __rmnet_frag_ingress_handler(struct rmnet_frag_descriptor *frag_desc,
 	}
 
 	if (port->data_format & RMNET_INGRESS_FORMAT_PS)
-		qmi_rmnet_work_maybe_restart(port);
+		qmi_rmnet_work_maybe_restart(port,
+			list_first_entry_or_null(&segs,
+						 struct rmnet_frag_descriptor,
+						 list),
+			NULL);
 
 	if (skip_perf)
 		goto no_perf;
@@ -1927,6 +1967,7 @@ void rmnet_frag_ingress_handler(struct sk_buff *skb,
 	LIST_HEAD(desc_list);
 	bool skip_perf = (skb->priority == 0xda1a);
 	u64 chain_count = 0;
+	struct sk_buff *head = skb;
 
 	/* Deaggregation and freeing of HW originating
 	 * buffers is done within here
@@ -1949,8 +1990,14 @@ void rmnet_frag_ingress_handler(struct sk_buff *skb,
 			}
 		}
 
-		skb_frag = skb_shinfo(skb)->frag_list;
-		skb_shinfo(skb)->frag_list = NULL;
+		if (skb == head) {
+			skb_frag = skb_shinfo(skb)->frag_list;
+			skb_shinfo(skb)->frag_list = NULL;
+		} else {
+			skb_frag = skb->next;
+			skb->next = NULL;
+		}
+
 		consume_skb(skb);
 		skb = skb_frag;
 	}
@@ -1973,13 +2020,15 @@ void rmnet_descriptor_deinit(struct rmnet_port *port)
 	struct rmnet_frag_descriptor *frag_desc, *tmp;
 
 	pool = port->frag_desc_pool;
+	if (pool) {
+		list_for_each_entry_safe(frag_desc, tmp, &pool->free_list, list) {
+			kfree(frag_desc);
+			pool->pool_size--;
+		}
 
-	list_for_each_entry_safe(frag_desc, tmp, &pool->free_list, list) {
-		kfree(frag_desc);
-		pool->pool_size--;
+		kfree(pool);
+		port->frag_desc_pool = NULL;
 	}
-
-	kfree(pool);
 }
 
 int rmnet_descriptor_init(struct rmnet_port *port)

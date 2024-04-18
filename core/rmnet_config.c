@@ -31,6 +31,7 @@
 #include "rmnet_genl.h"
 #include "rmnet_qmi.h"
 #include "qmi_rmnet.h"
+#include "rmnet_trace.h"
 #define CONFIG_QTI_QMI_RMNET 1
 #define CONFIG_QTI_QMI_DFC  1
 #define CONFIG_QTI_QMI_POWER_COLLAPSE 1
@@ -193,6 +194,8 @@ static int rmnet_update_queue_map(struct net_device *dev, u8 operation,
 			NL_SET_ERR_MSG_MOD(extack, "unable to add mapping");
 			return xa_err(p);
 		}
+
+		trace_rmnet_queue_mapping_add(priv->mux_id, txqueue, mark);
 		break;
 	case RMNET_QUEUE_MAPPING_REMOVE:
 		p = xa_erase(&priv->queue_map, mark);
@@ -200,6 +203,8 @@ static int rmnet_update_queue_map(struct net_device *dev, u8 operation,
 			NL_SET_ERR_MSG_MOD(extack, "unable to remove mapping");
 			return xa_err(p);
 		}
+
+		trace_rmnet_queue_mapping_remove(priv->mux_id, txqueue, mark);
 		break;
 	case RMNET_QUEUE_ENABLE:
 	case RMNET_QUEUE_DISABLE:
@@ -214,10 +219,15 @@ static int rmnet_update_queue_map(struct net_device *dev, u8 operation,
 				return -EINVAL;
 			}
 
-			if (operation == RMNET_QUEUE_ENABLE)
+			if (operation == RMNET_QUEUE_ENABLE) {
 				netif_tx_wake_queue(q);
-			else
+				trace_rmnet_queue_enable(priv->mux_id, txq,
+							 mark);
+			} else {
 				netif_tx_stop_queue(q);
+				trace_rmnet_queue_disable(priv->mux_id, txq,
+							  mark);
+			}
 		} else {
 			NL_SET_ERR_MSG_MOD(extack, "invalid queue mapping");
 			return -EINVAL;

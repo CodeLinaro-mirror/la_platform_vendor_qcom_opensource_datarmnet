@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -308,6 +308,16 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 
 	qmap = (struct rmnet_map_header *)rmnet_map_data_ptr(skb);
 	if (qmap->cd_bit) {
+		struct sk_buff *skbn = skb_clone(skb, GFP_ATOMIC);
+
+		if (skbn) {
+			/* Mark as command value */
+			skbn->mark = 0xda1a;
+			skbn->protocol = htons(ETH_P_MAP);
+			skbn->pkt_type = PACKET_HOST;
+			netif_receive_skb(skbn);
+		}
+
 		qmi_rmnet_set_dl_msg_active(port);
 		if (port->data_format & RMNET_INGRESS_FORMAT_DL_MARKER) {
 			if (!rmnet_map_flow_command(skb, port, false))
@@ -594,6 +604,12 @@ rmnet_map_ingress_handler(struct sk_buff *skb,
 		}
 
 		skb_push(skb, ETH_HLEN);
+	}
+
+	if (skb->mark == 0xda1a) {
+		/* Looped command packet. Eat it */
+		consume_skb(skb);
+		return;
 	}
 
 	if ((port->data_format & RMNET_INGRESS_FORMAT_IP_ROUTE) &&

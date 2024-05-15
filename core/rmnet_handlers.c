@@ -841,6 +841,8 @@ void rmnet_egress_handler(struct sk_buff *skb, bool low_latency, u8 ipsec)
 	skb->dev = priv->real_dev;
 	mux_id = priv->mux_id;
 
+	skb_set_queue_mapping(skb, IPA_RMNET_TX_QUEUE_DEFAULT);
+
 	port = rmnet_get_port(skb->dev);
 	trace_rmnet_skb_egress_entry(skb);
 	if (!port)

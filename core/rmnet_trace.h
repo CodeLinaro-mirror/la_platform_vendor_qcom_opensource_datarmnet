@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022,2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/version.h>
 #undef TRACE_SYSTEM
@@ -13,7 +13,11 @@
 #define TRACE_INCLUDE_PATH ../../../../../../../src/datarmnet/core
 #endif /* endif LINUX_VERSION_CODE < KERNEL_VERSION(5,5,0) */
 #else
+#ifdef CONFIG_ARCH_MDM9607
+#define TRACE_INCLUDE_PATH ../../../../../../../../../../../../../../datarmnet/core
+#else
 #define TRACE_INCLUDE_PATH ../../../../vendor/qcom/opensource/datarmnet/core
+#endif
 #endif
 #define TRACE_INCLUDE_FILE rmnet_trace
 
@@ -47,7 +51,7 @@ DECLARE_EVENT_CLASS(rmnet_skb_time_template,
 		__entry->qtime = ktime_get_raw_ns();
 	),
 
-	TP_printk("dev=%s skbaddr=%pK len=%u UTC time %ld",
+	TP_printk("dev=%s skbaddr=%pK len=%u UTC time %lld",
 		  __get_str(name), __entry->skbaddr, __entry->len,
 		   __entry->qtime)
 );

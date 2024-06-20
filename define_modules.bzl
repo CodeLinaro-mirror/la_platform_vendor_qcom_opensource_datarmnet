@@ -18,22 +18,12 @@ def define_modules(target, variant):
         ],
         kconfig = "core/Kconfig",
         conditional_srcs = {
-            "CONFIG_ARCH_PINEAPPLE": {
-                True: [
-                    "core/rmnet_ctl_client.c",
-                ],
-            },
             "CONFIG_ARCH_SUN": {
                 True: [
                     "core/rmnet_ctl_client.c",
                 ],
 	    },
-            "CONFIG_ARCH_PARROT": {
-                True: [
-                    "core/rmnet_ctl_client.c",
-                ],
-	    },
-            "CONFIG_ARCH_MONACO": {
+            "CONFIG_ARCH_CANOE": {
                 True: [
                     "core/rmnet_ctl_client.c",
                 ],

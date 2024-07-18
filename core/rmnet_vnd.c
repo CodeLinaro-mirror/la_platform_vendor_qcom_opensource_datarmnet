@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -285,6 +285,7 @@ static u16 rmnet_vnd_select_queue(struct net_device *dev,
 	int txq = 0;
 	rmnet_perf_egress_hook1_t rmnet_perf_egress1;
 	void (*aps_set_prio)(struct net_device *dev, struct sk_buff *skb);
+	void *p;
 
 	rmnet_perf_egress1 = rcu_dereference(rmnet_perf_egress_hook1);
 	if (rmnet_perf_egress1) {
@@ -453,7 +454,14 @@ skip_trace:
 		aps_set_prio(dev, skb);
 	rcu_read_unlock();
 
-	return (txq < dev->real_num_tx_queues) ? txq : 0;
+	p = xa_load(&priv->queue_map, skb->mark);
+	if (!p || !xa_is_value(p))
+		return (txq < dev->real_num_tx_queues) ? txq : 0;
+
+	txq = xa_to_value(p);
+
+	netdev_dbg(dev, "mark %08x -> txq %02x\n", skb->mark, txq);
+	return txq;
 }
 
 static const struct net_device_ops rmnet_vnd_ops = {
@@ -903,6 +911,8 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 		priv->mux_id = id;
 		rcu_assign_pointer(priv->qos_info,
 			qmi_rmnet_qos_init(real_dev, rmnet_dev, id));
+
+		xa_init(&priv->queue_map);
 
 		netdev_dbg(rmnet_dev, "rmnet dev created\n");
 	}

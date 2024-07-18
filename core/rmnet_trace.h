@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/version.h>
 #undef TRACE_SYSTEM
@@ -523,6 +523,57 @@ TRACE_EVENT
 TP_printk("freq policy update core:%u policy freq floor :%u freq ceil :%u",
 	  __entry->core, __entry->lowfreq, __entry->highfreq)
 );
+
+DECLARE_EVENT_CLASS(rmnet_queue_template,
+
+	TP_PROTO(u8 mux_id, u8 queue_id, u32 mark),
+
+	TP_ARGS(mux_id, queue_id, mark),
+
+	TP_STRUCT__entry(
+		__field(u8, mux_id)
+		__field(u8, queue_id)
+		__field(u32, mark)
+	),
+
+	TP_fast_assign(
+		__entry->mux_id = mux_id;
+		__entry->queue_id = queue_id;
+		__entry->mark = mark;
+	),
+
+	TP_printk("queue 0x%x on mux_id 0x%x, mark 0x%08x", __entry->queue_id,
+		  __entry->mux_id, __entry->mark)
+);
+
+DEFINE_EVENT(rmnet_queue_template, rmnet_queue_enable,
+
+	TP_PROTO(u8 mux_id, u8 queue_id, u32 mark),
+
+	TP_ARGS(mux_id, queue_id, mark)
+);
+
+DEFINE_EVENT(rmnet_queue_template, rmnet_queue_disable,
+
+	TP_PROTO(u8 mux_id, u8 queue_id, u32 mark),
+
+	TP_ARGS(mux_id, queue_id, mark)
+);
+
+DEFINE_EVENT(rmnet_queue_template, rmnet_queue_mapping_add,
+
+	TP_PROTO(u8 mux_id, u8 queue_id, u32 mark),
+
+	TP_ARGS(mux_id, queue_id, mark)
+);
+
+DEFINE_EVENT(rmnet_queue_template, rmnet_queue_mapping_remove,
+
+	TP_PROTO(u8 mux_id, u8 queue_id, u32 mark),
+
+	TP_ARGS(mux_id, queue_id, mark)
+);
+
 #endif /* _TRACE_RMNET_H */
 
 #include <trace/define_trace.h>

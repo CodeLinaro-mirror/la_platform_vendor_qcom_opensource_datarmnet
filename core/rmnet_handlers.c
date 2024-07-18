@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -308,6 +308,16 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 
 	qmap = (struct rmnet_map_header *)rmnet_map_data_ptr(skb);
 	if (qmap->cd_bit) {
+		struct sk_buff *skbn = skb_clone(skb, GFP_ATOMIC);
+
+		if (skbn) {
+			/* Mark as command value */
+			skbn->mark = 0xda1a;
+			skbn->protocol = htons(ETH_P_MAP);
+			skbn->pkt_type = PACKET_HOST;
+			netif_receive_skb(skbn);
+		}
+
 		qmi_rmnet_set_dl_msg_active(port);
 		if (port->data_format & RMNET_INGRESS_FORMAT_DL_MARKER) {
 			if (!rmnet_map_flow_command(skb, port, false))
@@ -596,6 +606,12 @@ rmnet_map_ingress_handler(struct sk_buff *skb,
 		skb_push(skb, ETH_HLEN);
 	}
 
+	if (skb->mark == 0xda1a) {
+		/* Looped command packet. Eat it */
+		consume_skb(skb);
+		return;
+	}
+
 	if ((port->data_format & RMNET_INGRESS_FORMAT_IP_ROUTE) &&
 	    (skb_get_rx_queue(skb) == port->ip_route_params.rx_queue)) {
 		rmnet_ip_route_rcv(skb, port);
@@ -824,6 +840,8 @@ void rmnet_egress_handler(struct sk_buff *skb, bool low_latency, u8 ipsec)
 	priv = netdev_priv(orig_dev);
 	skb->dev = priv->real_dev;
 	mux_id = priv->mux_id;
+
+	skb_set_queue_mapping(skb, IPA_RMNET_TX_QUEUE_DEFAULT);
 
 	port = rmnet_get_port(skb->dev);
 	trace_rmnet_skb_egress_entry(skb);

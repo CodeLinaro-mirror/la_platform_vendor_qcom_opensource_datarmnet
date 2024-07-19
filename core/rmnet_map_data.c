@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022,2024 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -307,7 +307,7 @@ struct rmnet_map_header *rmnet_map_add_map_header(struct sk_buff *skb,
 	memset(map_header, 0, sizeof(struct rmnet_map_header));
 
 	/* Set next_hdr bit for csum offload packets */
-	if (port->data_format & RMNET_FLAGS_EGRESS_MAP_CKSUMV5)
+	if (port->data_format & RMNET_PRIV_FLAGS_EGRESS_MAP_CKSUMV5)
 		map_header->next_hdr = 1;
 
 	if (pad == RMNET_MAP_NO_PAD_BYTES) {
@@ -355,7 +355,7 @@ struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb,
 
 	if (port->data_format & RMNET_FLAGS_INGRESS_MAP_CKSUMV4)
 		packet_len += sizeof(struct rmnet_map_dl_csum_trailer);
-	else if (port->data_format & RMNET_FLAGS_INGRESS_MAP_CKSUMV5) {
+	else if (port->data_format & RMNET_PRIV_FLAGS_INGRESS_MAP_CKSUMV5) {
 		if (!maph->cd_bit) {
 			packet_len += sizeof(struct rmnet_map_v5_csum_header);
 
@@ -528,7 +528,7 @@ void rmnet_map_v5_checksum_uplink_packet(struct sk_buff *skb,
 		rmnet_map_v5_check_priority(skb, orig_dev, ul_header, false);
 
 	/* Allow priority w/o csum offload */
-	if (!(port->data_format & RMNET_FLAGS_EGRESS_MAP_CKSUMV5))
+	if (!(port->data_format & RMNET_PRIV_FLAGS_EGRESS_MAP_CKSUMV5))
 		return;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
@@ -578,7 +578,7 @@ void rmnet_map_checksum_uplink_packet(struct sk_buff *skb,
 	case RMNET_FLAGS_EGRESS_MAP_CKSUMV4:
 		rmnet_map_v4_checksum_uplink_packet(skb, orig_dev);
 		break;
-	case RMNET_FLAGS_EGRESS_MAP_CKSUMV5:
+	case RMNET_PRIV_FLAGS_EGRESS_MAP_CKSUMV5:
 		rmnet_map_v5_checksum_uplink_packet(skb, port, orig_dev);
 		break;
 	default:

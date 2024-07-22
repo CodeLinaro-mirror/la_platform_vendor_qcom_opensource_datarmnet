@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1743,7 +1743,8 @@ int rmnet_frag_process_next_hdr_packet(struct rmnet_frag_descriptor *frag_desc,
 rmnet_perf_desc_hook_t rmnet_perf_desc_entry __rcu __read_mostly;
 EXPORT_SYMBOL(rmnet_perf_desc_entry);
 
-static struct sk_buff *rmnet_alloc_skb_eth(struct rmnet_frag_descriptor *frag_desc)
+static struct sk_buff *
+rmnet_alloc_skb_eth(struct rmnet_frag_descriptor *frag_desc)
 {
 	struct sk_buff *head_skb;
 	struct rmnet_fragment *frag, *tmp;
@@ -1756,14 +1757,11 @@ static struct sk_buff *rmnet_alloc_skb_eth(struct rmnet_frag_descriptor *frag_de
 	skb_reserve(head_skb, RMNET_MAP_DEAGGR_HEADROOM);
 
 	/* Add in the page fragments */
-	rmnet_descriptor_for_each_frag_safe(frag, tmp, frag_desc) {
+	rmnet_descriptor_for_each_frag_safe(frag, tmp, frag_desc)
 		skb_put_data(head_skb, skb_frag_address(&frag->frag),
 			     skb_frag_size(&frag->frag));
-	}
 
-	head_skb->dev = frag_desc->dev;
 	head_skb->protocol = htons(ETH_P_MAP);
-
 	return head_skb;
 }
 
@@ -1776,6 +1774,7 @@ void rmnet_frag_deliver_eth(struct rmnet_frag_descriptor *frag_desc,
 
 	skb = rmnet_alloc_skb_eth(frag_desc);
 	if (skb) {
+		skb->dev = frag_desc->dev;
 		rc = rmnet_ingress_eth_handler(skb, eth_ep);
 		if (rc == -1)
 			kfree_skb(skb);
@@ -1805,6 +1804,17 @@ __rmnet_frag_ingress_handler(struct rmnet_frag_descriptor *frag_desc,
 	len = ntohs(qmap->pkt_len) - pad;
 
 	if (qmap->cd_bit) {
+		/* Turns out this helper does nearly exactly what we need */
+		struct sk_buff *skb = rmnet_alloc_skb_eth(frag_desc);
+
+		if (skb) {
+			/* Mark as command value */
+			skb->mark = 0xda1a;
+			skb->dev = port->dev;
+			skb->pkt_type = PACKET_HOST;
+			netif_receive_skb(skb);
+		}
+
 		qmi_rmnet_set_dl_msg_active(port);
 		if (port->data_format & RMNET_INGRESS_FORMAT_DL_MARKER) {
 			rmnet_frag_flow_command(frag_desc, port, len);

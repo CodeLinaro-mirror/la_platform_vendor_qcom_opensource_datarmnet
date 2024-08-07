@@ -37,7 +37,7 @@ static void rmnet_ll_buffers_submit(struct rmnet_ll_endpoint *ll_ep,
 	list_for_each_entry(ll_buf, buf_list, list) {
 		if (ll_buf->submitted)
 			continue;
-
+                #ifdef RMNET_LL_SUPPORT
 		if (!rmnet_ll_client.buffer_queue ||
 		    rmnet_ll_client.buffer_queue(ll_ep, ll_buf)) {
 			rmnet_ll_stats.rx_queue_err++;
@@ -48,6 +48,12 @@ static void rmnet_ll_buffers_submit(struct rmnet_ll_endpoint *ll_ep,
 			ll_buf->submitted = true;
 			rmnet_ll_stats.rx_queue++;
 		}
+	       #else
+	       // Handle case when rmnet_ll_client is not included
+               rmnet_ll_stats.rx_queue_err++;
+               if (ll_buf->temp_alloc)
+               put_page(ll_buf->page);
+	       #endif
 	}
 }
 
@@ -96,13 +102,17 @@ void rmnet_ll_buffers_recycle(struct rmnet_ll_endpoint *ll_ep)
 	struct rmnet_ll_buffer *ll_buf, *tmp;
 	LIST_HEAD(buf_list);
 	int num_tre, count = 0, iter = 0;
-
+        #ifdef RMNET_LL_SUPPORT
 	if (!rmnet_ll_client.query_free_descriptors)
 		goto out;
 
 	num_tre = rmnet_ll_client.query_free_descriptors(ll_ep);
 	if (!num_tre)
 		goto out;
+	#else
+	goto out;
+        #endif
+
 
 	list_for_each_entry_safe(ll_buf, tmp, ll_ep->buf_pool.last, list) {
 		if (++iter > RMNET_LL_MAX_RECYCLE_ITER || count == num_tre)
@@ -168,10 +178,16 @@ struct rmnet_ll_stats *rmnet_ll_get_stats(void)
 
 int rmnet_ll_init(void)
 {
+	#ifdef RMNET_LL_SUPPORT
 	return rmnet_ll_client.init();
+	#else
+        return 0;
+        #endif
 }
 
 void rmnet_ll_exit(void)
 {
+	#ifdef RMNET_LL_SUPPORT
 	rmnet_ll_client.exit();
+	#endif
 }

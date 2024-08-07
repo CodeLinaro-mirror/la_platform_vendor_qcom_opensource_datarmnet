@@ -16,7 +16,6 @@ rmnetcore_modules.register(
             "rmnet_module.c",
             "rmnet_vnd.c",
             "rmnet_ll.c",
-            "rmnet_ll_ipa.c",
             "qmi_rmnet.c",
             "wda_qmi.c",
             "dfc_qmi.c",

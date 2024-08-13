@@ -454,6 +454,9 @@ skip_trace:
 		aps_set_prio(dev, skb);
 	rcu_read_unlock();
 
+	if (!skb->sk || !sk_fullsock(skb->sk))
+		return skb->dev->real_num_tx_queues >> 1;
+
 	p = xa_load(&priv->queue_map, skb->mark);
 	if (!p || !xa_is_value(p))
 		return (txq < dev->real_num_tx_queues) ? txq : 0;

@@ -115,8 +115,8 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 
 		if ((priv->real_dev->features & NETIF_F_HW_ESP) &&
 		    (priv->real_dev->hw_enc_features & NETIF_F_HW_ESP) &&
-		    (IPA_IPSEC_SKB_CB(skb)->magic == IPA_IPSEC_SKB_MAGIC)) {
-			ipsec = IPA_IPSEC_SKB_CB(skb)->sa_dir;
+		    (skb->ipa_skb_cb.magic == IPA_IPSEC_SKB_MAGIC)) {
+			ipsec = skb->ipa_skb_cb.sa_dir;
 			priv->stats.ul_ipsec++;
 		}
 
@@ -453,6 +453,9 @@ skip_trace:
 	if (aps_set_prio)
 		aps_set_prio(dev, skb);
 	rcu_read_unlock();
+
+	if (!skb->sk || !sk_fullsock(skb->sk))
+		return skb->dev->real_num_tx_queues >> 1;
 
 	p = xa_load(&priv->queue_map, skb->mark);
 	if (!p || !xa_is_value(p))

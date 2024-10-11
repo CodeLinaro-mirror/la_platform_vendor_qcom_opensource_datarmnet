@@ -16,6 +16,8 @@
 		#else
 			#define TRACE_INCLUDE_PATH ../../../../../../../src/datarmnet/core
 		#endif /* CONFIG_ARCH_SDXNIGHTJAR */
+	#elif LINUX_VERSION_CODE < KERNEL_VERSION(6,9,0)
+		#define TRACE_INCLUDE_PATH ../../../../../../../src/datarmnet/core
 	#else
 		#define TRACE_INCLUDE_PATH ../../../../vendor/qcom/opensource/datarmnet/core
 	#endif /* endif LINUX_VERSION_CODE < KERNEL_VERSION(5,5,0) */

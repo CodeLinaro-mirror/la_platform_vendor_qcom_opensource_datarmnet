@@ -15,6 +15,7 @@
  */
 
 #include <linux/skbuff.h>
+#include <linux/version.h>
 #include <net/gro_cells.h>
 #include "rmnet_map.h"
 

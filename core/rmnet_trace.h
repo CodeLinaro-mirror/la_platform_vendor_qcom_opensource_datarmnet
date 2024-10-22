@@ -40,7 +40,11 @@ TRACE_EVENT(rmnet_xmit_skb,
 	),
 
 	TP_fast_assign(
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
 		__assign_str(dev_name, skb->dev->name);
+#else
+		__assign_str(dev_name);
+#endif
 		__entry->len = skb->len;
 	),
 
@@ -139,8 +143,13 @@ TRACE_EVENT(print_skb_gso,
 		__entry->dest = dest;
 		__entry->ip_proto = ip_proto;
 		__entry->xport_proto = xport_proto;
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
 		__assign_str(saddr, saddr);
 		__assign_str(daddr, daddr);
+#else
+		__assign_str(saddr);
+		__assign_str(daddr);
+#endif
 	),
 
 	TP_printk("GSO: skbaddr=%pK, len=%d, data_len=%d, [%s][%s] src=%s %u dest=%s %u",
@@ -174,8 +183,13 @@ DECLARE_EVENT_CLASS(print_icmp,
 		__entry->ip_proto = ip_proto;
 		__entry->type = type;
 		__entry->sequence = sequence;
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
 		__assign_str(saddr, saddr);
 		__assign_str(daddr, daddr);
+#else
+		__assign_str(saddr);
+		__assign_str(daddr);
+#endif
 	),
 
 	TP_printk("ICMP: skbaddr=%pK, len=%d, [%s] type=%u sequence=%u source=%s dest=%s",
@@ -227,8 +241,13 @@ DECLARE_EVENT_CLASS(print_tcp,
 	TP_fast_assign(
 		__entry->skbaddr = skb;
 		__entry->len = skb->len;
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
 		__assign_str(saddr, saddr);
 		__assign_str(daddr, daddr);
+#else
+		__assign_str(saddr);
+		__assign_str(daddr);
+#endif
 		__entry->source = tp->source;
 		__entry->dest = tp->dest;
 		__entry->seq = tp->seq;
@@ -284,8 +303,13 @@ DECLARE_EVENT_CLASS(print_udp,
 	TP_fast_assign(
 		__entry->skbaddr = skb;
 		__entry->len = skb->len;
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
 		__assign_str(saddr, saddr);
 		__assign_str(daddr, daddr);
+#else
+		__assign_str(saddr);
+		__assign_str(daddr);
+#endif
 		__entry->source = uh->source;
 		__entry->dest = uh->dest;
 		__entry->ip_id = ip_id;

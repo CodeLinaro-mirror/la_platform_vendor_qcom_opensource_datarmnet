@@ -50,7 +50,11 @@ TRACE_EVENT(dfc_qmi_tc,
 	),
 
 	TP_fast_assign(
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
 		__assign_str(dev_name, name);
+#else
+		__assign_str(dev_name);
+#endif
 		__entry->txq = txq;
 		__entry->enable = enable;
 	),
@@ -113,7 +117,11 @@ TRACE_EVENT(dfc_flow_check,
 	),
 
 	TP_fast_assign(
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
 		__assign_str(dev_name, name);
+#else
+		__assign_str(dev_name);
+#endif
 		__entry->bearer_id = bearer_id;
 		__entry->len = len;
 		__entry->mark = mark;
@@ -142,7 +150,11 @@ TRACE_EVENT(dfc_flow_info,
 	),
 
 	TP_fast_assign(
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
 		__assign_str(dev_name, name);
+#else
+		__assign_str(dev_name);
+#endif
 		__entry->bid = bearer_id;
 		__entry->fid = flow_id;
 		__entry->ip = ip_type;
@@ -348,7 +360,11 @@ TRACE_EVENT(dfc_ll_switch,
 	),
 
 	TP_fast_assign(
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
 		__assign_str(cmd_str, cmd);
+#else
+		__assign_str(cmd_str);
+#endif
 		__entry->type = type;
 		__entry->num_bearer = num_bearer;
 		memcpy(__get_dynamic_array(bearers), bearers, num_bearer);

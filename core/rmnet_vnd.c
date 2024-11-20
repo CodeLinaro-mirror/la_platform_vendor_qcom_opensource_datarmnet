@@ -723,8 +723,6 @@ static const struct ethtool_ops rmnet_ethtool_ops = {
 	.nway_reset = rmnet_stats_reset,
 };
 
-#ifdef CONFIG_XFRM
-
 static bool rmnet_xfrm_is_valid_state(struct xfrm_state *x)
 {
 	struct rmnet_priv *priv = NULL;
@@ -769,12 +767,12 @@ static const struct xfrmdev_ops *rmnet_real_dev_xfrmdev_ops(struct net_device *d
 	return priv->real_dev->xfrmdev_ops;
 }
 
-static int rmnet_xfrm_add_state(struct xfrm_state *x)
+static int rmnet_xfrm_add_state(struct xfrm_state *x, struct netlink_ext_ack *extack)
 {
 	if (!rmnet_xfrm_is_valid_state(x))
 		return -EINVAL;
 
-	return rmnet_real_dev_xfrmdev_ops(x->xso.dev)->xdo_dev_state_add(x);
+	return rmnet_real_dev_xfrmdev_ops(x->xso.dev)->xdo_dev_state_add(x, extack);
 }
 
 static void rmnet_xfrm_del_state(struct xfrm_state *x)
@@ -817,12 +815,12 @@ static void rmnet_xfrm_state_update_curlft(struct xfrm_state *x)
 	rmnet_real_dev_xfrmdev_ops(x->xso.dev)->xdo_dev_state_update_curlft(x);
 }
 
-static int rmnet_xfrm_policy_add(struct xfrm_policy *x)
+static int rmnet_xfrm_policy_add(struct xfrm_policy *x, struct netlink_ext_ack *extack)
 {
 	if (!rmnet_xfrm_is_valid_policy(x))
 		return -EINVAL;
 
-	return rmnet_real_dev_xfrmdev_ops(x->xdo.dev)->xdo_dev_policy_add(x);
+	return rmnet_real_dev_xfrmdev_ops(x->xdo.dev)->xdo_dev_policy_add(x, extack);
 }
 
 static void rmnet_xfrm_policy_delete(struct xfrm_policy *x)
@@ -852,8 +850,6 @@ static const struct xfrmdev_ops rmnet_xfrmdev_ops = {
 	.xdo_dev_policy_delete = rmnet_xfrm_policy_delete,
 	.xdo_dev_policy_free = rmnet_xfrm_policy_free,
 };
-
-#endif //#ifdef CONFIG_XFRM
 
 /* Called by kernel whenever a new rmnet<n> device is created. Sets MTU,
  * flags, ARP type, needed headroom, etc...
@@ -898,7 +894,6 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 	rmnet_dev->hw_features |= NETIF_F_GRO_HW;
 	rmnet_dev->hw_features |= NETIF_F_GSO_UDP_L4;
 	rmnet_dev->hw_features |= NETIF_F_ALL_TSO;
-#ifdef CONFIG_XFRM
 
 	if ((real_dev->features & NETIF_F_HW_ESP) &&
 	    (real_dev->hw_enc_features & NETIF_F_HW_ESP)) {
@@ -907,7 +902,6 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 		rmnet_dev->features |= NETIF_F_HW_ESP;
 		rmnet_dev->hw_enc_features |= NETIF_F_HW_ESP;
 	}
-#endif //#ifdef CONFIG_XFRM
 
 	priv->real_dev = real_dev;
 

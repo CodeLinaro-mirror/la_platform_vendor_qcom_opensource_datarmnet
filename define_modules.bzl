@@ -11,7 +11,7 @@ def define_modules(target, variant):
     mod_list = []
 
     ddk_module(
-        name = "{}_rmnet_core".format(kernel_build_variant),
+        name = "{}-defconfig_rmnet_core".format(kernel_build_variant),
         out = "rmnet_core.ko",
         srcs = [
             "core/rmnet_config.c",
@@ -38,10 +38,10 @@ def define_modules(target, variant):
             "//build_dir/target-aarch64_cortex-a53_musl/linux-sdx85/dataipa-1.0:include_headers",
         ],
     )
-    mod_list.append("{}_rmnet_core".format(kernel_build_variant))
+    mod_list.append("{}-defconfig_rmnet_core".format(kernel_build_variant))
 
     ddk_module(
-        name = "{}_rmnet_eth".format(kernel_build_variant),
+        name = "{}-defconfig_rmnet_eth".format(kernel_build_variant),
         out = "rmnet_eth.ko",
         srcs = [
             "core/rmnet_eth_main.c",
@@ -49,12 +49,12 @@ def define_modules(target, variant):
 	kernel_build = "//msm-kernel:{}-defconfig".format(kernel_build_variant),
         deps = [
             ":rmnet_core_headers",
-	    ":{}_rmnet_core".format(kernel_build_variant),
+            ":{}-defconfig_rmnet_core".format(kernel_build_variant),
             "//msm-kernel:all_headers",
             "//build_dir/target-aarch64_cortex-a53_musl/linux-sdx85/dataipa-1.0:include_headers",
         ],
     )
-    mod_list.append("{}_rmnet_eth".format(kernel_build_variant))
+    mod_list.append("{}-defconfig_rmnet_eth".format(kernel_build_variant))
 
 
     copy_to_dist_dir(

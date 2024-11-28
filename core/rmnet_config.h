@@ -327,6 +327,8 @@ enum rmnet_trace_evt {
 	NW_STACK_TX,
 };
 
+int rmnet_clean_pending_real_dev(struct net_device *real_dev,
+				 struct rmnet_port *port);
 int rmnet_is_real_dev_registered(const struct net_device *real_dev);
 struct rmnet_port *rmnet_get_port(struct net_device *real_dev);
 struct rmnet_endpoint *rmnet_get_endpoint(struct rmnet_port *port, u8 mux_id);

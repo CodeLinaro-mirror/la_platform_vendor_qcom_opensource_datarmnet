@@ -1,0 +1,19 @@
+load(":define_modules.bzl", "define_modules")
+load("//build/kernel/kleaf:kernel.bzl", "ddk_headers")
+
+define_modules("sa510m", "debug")
+define_modules("sa510m", "perf")
+
+package(
+    default_visibility = [
+        "//visibility:public",
+    ],
+)
+
+ddk_headers(
+    name = "rmnet_core_headers",
+    hdrs = glob([
+        "core/*.h",
+    ]),
+    includes = ["core"],
+)

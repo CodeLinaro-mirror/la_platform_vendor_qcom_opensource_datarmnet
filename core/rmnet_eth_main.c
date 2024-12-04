@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023,2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -13,7 +13,7 @@
  * RMNET_ETH main handler
  *
  */
-
+#include <linux/etherdevice.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
@@ -287,12 +287,12 @@ static void rmnet_veth_get_stats64(struct net_device *dev,
 		pcpu_ptr = per_cpu_ptr(priv->pcpu_stats, cpu);
 
 		do {
-			start = u64_stats_fetch_begin_irq(&pcpu_ptr->syncp);
+			start = u64_stats_fetch_begin(&pcpu_ptr->syncp);
 			total_stats.rx_frames += pcpu_ptr->stats.rx_frames;
 			total_stats.rx_bytes += pcpu_ptr->stats.rx_bytes;
 			total_stats.tx_frames += pcpu_ptr->stats.tx_frames;
 			total_stats.tx_bytes += pcpu_ptr->stats.tx_bytes;
-		} while (u64_stats_fetch_retry_irq(&pcpu_ptr->syncp, start));
+		} while (u64_stats_fetch_retry(&pcpu_ptr->syncp, start));
 
 		total_stats.tx_drops += pcpu_ptr->stats.tx_drops;
 		total_stats.rx_drops += pcpu_ptr->stats.rx_drops;
@@ -434,7 +434,7 @@ rx_handler_result_t rmnet_eth_rx_handler(struct sk_buff **pskb,
 	dev = skb->dev;
 	port = rmnet_eth_get_port_rtnl(dev);
 	if (unlikely(!port)) {
-		atomic_long_inc(&skb->dev->rx_nohandler);
+		dev_core_stats_rx_nohandler_inc(skb->dev);
 		rmnet_eth_drop_rx_skb(skb, RMNET_ETH_RX_INV_PORT);
 		goto done;
 	}
@@ -523,7 +523,7 @@ static int rmnet_eth_register_real_device(struct net_device *real_dev)
 void rmnet_eth_setup(struct net_device *rmnet_eth_dev)
 {
 	ether_setup(rmnet_eth_dev);
-	random_ether_addr(rmnet_eth_dev->dev_addr);
+	eth_hw_addr_random(rmnet_eth_dev);
 	rmnet_eth_dev->netdev_ops = &rmnet_veth_ops;
 	rmnet_eth_dev->needed_headroom = RMNET_ETH_NEEDED_HEADROOM;
 }

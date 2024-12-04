@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/version.h>
 #undef TRACE_SYSTEM
@@ -16,6 +16,8 @@
 		#else
 			#define TRACE_INCLUDE_PATH ../../../../../../../src/datarmnet/core
 		#endif /* CONFIG_ARCH_SDXNIGHTJAR */
+	#elif LINUX_VERSION_CODE < KERNEL_VERSION(6,9,0)
+		#define TRACE_INCLUDE_PATH ../../../../../../../src/datarmnet/core
 	#else
 		#define TRACE_INCLUDE_PATH ../../../../vendor/qcom/opensource/datarmnet/core
 	#endif /* endif LINUX_VERSION_CODE < KERNEL_VERSION(5,5,0) */

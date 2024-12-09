@@ -546,13 +546,15 @@ static int rmnet_eth_rtnl_validate(struct nlattr *tb[], struct nlattr *data[],
 }
 
 static int rmnet_eth_unregister_real_device(struct net_device *real_dev,
-                                            struct rmnet_eth_port *port)
+                                            struct rmnet_eth_port *eth_port)
 {
-	if (port->nr_rmnet_eth_devs)
-		return -EINVAL;
+	struct rmnet_port *port;
+	port = rtnl_dereference(real_dev->rx_handler_data);
 
 	/* release reference on real_dev */
-	dev_put(real_dev);
+	if((port->nr_rmnet_devs == 0) && (eth_port->nr_rmnet_eth_devs == 0)){
+		rmnet_clean_pending_real_dev(real_dev, port);
+	}
 
 	netdev_dbg(real_dev, "Removed from rmnet\n");
 	return 0;

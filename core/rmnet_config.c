@@ -84,6 +84,21 @@ static const struct nla_policy rmnet_policy[__IFLA_RMNET_EXT_MAX] = {
 	},
 };
 
+int rmnet_clean_pending_real_dev(struct net_device *real_dev,
+				 struct rmnet_port *port)
+{
+	netdev_rx_handler_unregister(real_dev);
+	rmnet_map_cmd_exit(port);
+	rmnet_map_tx_aggregate_exit(port);
+	rmnet_descriptor_deinit(port);
+
+	kfree(port);
+	dev_put(real_dev);
+
+	return 0;
+}
+EXPORT_SYMBOL(rmnet_clean_pending_real_dev);
+
 int rmnet_is_real_dev_registered(const struct net_device *real_dev)
 {
 	return rcu_access_pointer(real_dev->rx_handler) == rmnet_rx_handler;
@@ -100,20 +115,10 @@ rmnet_get_port_rtnl(const struct net_device *real_dev)
 static int rmnet_unregister_real_device(struct net_device *real_dev,
 					struct rmnet_port *port)
 {
-	if (port->nr_rmnet_devs)
-		return -EINVAL;
-
-	netdev_rx_handler_unregister(real_dev);
-
-	rmnet_map_cmd_exit(port);
-	rmnet_map_tx_aggregate_exit(port);
-
-	rmnet_descriptor_deinit(port);
-
-	kfree(port);
-
 	/* release reference on real_dev */
-	dev_put(real_dev);
+	if((port->nr_rmnet_devs == 0) && ((port->eth_port).nr_rmnet_eth_devs == 0)){
+		rmnet_clean_pending_real_dev(real_dev , port);
+	}
 
 	netdev_dbg(real_dev, "Removed from rmnet\n");
 	return 0;

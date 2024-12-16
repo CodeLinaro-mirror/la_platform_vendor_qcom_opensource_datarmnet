@@ -47,8 +47,13 @@ def define_modules(target, variant):
                 True: [
                     "core/rmnet_ctl_client.c",
                 ],
-	    },
+            },
             "CONFIG_ARCH_CANOE": {
+                True: [
+                    "core/rmnet_ctl_client.c",
+                ],
+            },
+            "CONFIG_ARCH_VIENNA": {
                 True: [
                     "core/rmnet_ctl_client.c",
                 ],

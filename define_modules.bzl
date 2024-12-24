@@ -7,6 +7,31 @@ def define_modules(target, variant):
 
     #The below will take care of the defconfig
     #include_defconfig = ":{}_defconfig".format(variant)
+    deps_core = select({
+	"//build/kernel/kleaf:socrepo_true": [
+		"//soc-repo:all_headers",
+		"//soc-repo:{}/drivers/soc/qcom/qmi_helpers".format(kernel_build_variant),
+	],
+	"//build/kernel/kleaf:socrepo_false": [
+		"//msm-kernel:all_headers",
+	],
+    })
+
+    deps_ctl = select({
+	"//build/kernel/kleaf:socrepo_true": [
+		"//soc-repo:all_headers",
+		"//soc-repo:{}/drivers/soc/qcom/qmi_helpers".format(kernel_build_variant),
+		"//soc-repo:{}/kernel/trace/qcom_ipc_logging".format(kernel_build_variant),
+	],
+	"//build/kernel/kleaf:socrepo_false": [
+		"//msm-kernel:all_headers",
+	],
+    })
+
+    kernel_build = select({
+	"//build/kernel/kleaf:socrepo_true": "//soc-repo:{}_base_kernel".format(kernel_build_variant),
+	"//build/kernel/kleaf:socrepo_false": "//msm-kernel:{}".format(kernel_build_variant),
+    })
 
     ddk_module(
         name = "{}_rmnet_ctl".format(kernel_build_variant),
@@ -29,13 +54,13 @@ def define_modules(target, variant):
                 ],
             },
         },
-        kernel_build = "//msm-kernel:{}".format(kernel_build_variant),
-        deps = [
+        kernel_build = kernel_build,
+        deps = deps_ctl + [
             "//vendor/qcom/opensource/dataipa:{}_ipam".format(kernel_build_variant),
-            "//msm-kernel:all_headers",
             "//vendor/qcom/opensource/dataipa:include_headers",
         ],
     )
+
 
     ddk_module(
         name = "{}_rmnet_core".format(kernel_build_variant),
@@ -61,13 +86,12 @@ def define_modules(target, variant):
         local_defines = [
             "RMNET_TRACE_INCLUDE_PATH={}/core".format(include_base),
         ],
-        kernel_build = "//msm-kernel:{}".format(kernel_build_variant),
-        deps = [
+        kernel_build = kernel_build,
+        deps = deps_core + [
             ":rmnet_core_headers",
             ":{}_rmnet_ctl".format(kernel_build_variant),
             "//vendor/qcom/opensource/dataipa:{}_ipam".format(kernel_build_variant),
             "//vendor/qcom/opensource/datarmnet-ext/mem:{}_rmnet_mem".format(kernel_build_variant),
-            "//msm-kernel:all_headers",
             "//vendor/qcom/opensource/dataipa:include_headers",
             "//vendor/qcom/opensource/datarmnet-ext/mem:rmnet_mem_headers",
         ],

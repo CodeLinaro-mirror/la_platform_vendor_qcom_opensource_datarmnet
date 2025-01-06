@@ -8,6 +8,7 @@ EXTRA_CFLAGS+=-DSYSTEM_IS_64
 else
 CCFLAGS += -m32
 endif
+EXTRA_CFLAGS+=-I$(DATAIPA_STAGING_INCDIR)
 
 rmnet_core_dir	        = $(prefix)/rmnet_core
 rmnet_core_CFLAGS	= -Werror

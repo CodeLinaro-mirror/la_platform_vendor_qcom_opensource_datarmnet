@@ -50,7 +50,7 @@ def define_modules(target, variant):
 	kernel_build = "//msm-kernel:{}-defconfig".format(kernel_build_variant),
         deps = [
             ":rmnet_core_headers",
-            ":{}_rmnet_core".format(kernel_build_variant),
+            ":{}-deconfig_rmnet_core".format(kernel_build_variant),
             "//msm-kernel:all_headers_arm",
             "//dataipa:include_headers",
         ],

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+/* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #if !defined(__RMNET_HOOKS__) || defined(__RMNET_HOOK_MULTIREAD__)
@@ -182,6 +182,13 @@ RMNET_MODULE_HOOK(perf_non_coal_stat,
 	RMNET_MODULE_HOOK_PROTOCOL(uint8_t mux_id, uint64_t len),
 	RMNET_MODULE_HOOK_ARGS(mux_id, len),
 	RMNET_MODULE_HOOK_RETURN_TYPE(void)
+);
+
+RMNET_MODULE_HOOK(perf_ecn_ingress,
+	RMNET_MODULE_HOOK_NUM(PERF_ECN_INGRESS),
+	RMNET_MODULE_HOOK_PROTOCOL(struct sk_buff *skb),
+	RMNET_MODULE_HOOK_ARGS(skb),
+	RMNET_MODULE_HOOK_RETURN_TYPE(int)
 );
 
 #endif

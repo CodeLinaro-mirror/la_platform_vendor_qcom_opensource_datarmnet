@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+/* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __RMNET_MODULE_H__
@@ -32,6 +32,7 @@ enum {
 	RMNET_MODULE_HOOK_PERF_COAL_STAT,
 	RMNET_MODULE_HOOK_PERF_SEG_STAT,
 	RMNET_MODULE_HOOK_PERF_NON_COAL_STAT,
+	RMNET_MODULE_HOOK_PERF_ECN_INGRESS,
 	__RMNET_MODULE_NUM_HOOKS,
 };
 

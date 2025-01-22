@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -117,12 +117,14 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 		if (RMNET_APS_LLC(skb->priority))
 			low_latency = true;
 
+#if IS_ENABLED(CONFIG_IPA3)
 		if ((priv->real_dev->features & NETIF_F_HW_ESP) &&
 		    (priv->real_dev->hw_enc_features & NETIF_F_HW_ESP) &&
-		    (IPA_IPSEC_SKB_CB(skb)->magic == IPA_IPSEC_SKB_MAGIC)) {
-			ipsec = IPA_IPSEC_SKB_CB(skb)->sa_dir;
+		    (skb->ipa_skb_cb.magic == IPA_IPSEC_SKB_MAGIC)) {
+			ipsec = skb->ipa_skb_cb.sa_dir;
 			priv->stats.ul_ipsec++;
 		}
+#endif /* IS_ENABLED(CONFIG_IPA3) */
 
 		if ((low_latency || RMNET_APS_LLB(skb->priority)) &&
 		    skb_is_gso(skb) && !ipsec) {

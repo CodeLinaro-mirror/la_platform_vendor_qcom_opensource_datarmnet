@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -82,6 +82,8 @@ EXPORT_SYMBOL(rmnet_set_skb_proto);
 void
 rmnet_deliver_skb(struct sk_buff *skb, struct rmnet_port *port)
 {
+	int rc = 0;
+
 	trace_rmnet_low(RMNET_MODULE, RMNET_DLVR_SKB, 0xDEF, 0xDEF,
 			0xDEF, 0xDEF, (void *)skb, NULL);
 	skb_reset_network_header(skb);
@@ -89,6 +91,12 @@ rmnet_deliver_skb(struct sk_buff *skb, struct rmnet_port *port)
 
 	skb->pkt_type = PACKET_HOST;
 	skb_set_mac_header(skb, 0);
+
+	if (rmnet_module_hook_perf_ecn_ingress(&rc, skb)) {
+		if (rc)
+			/* SKB has been freed */
+			return;
+	}
 
 	/* Low latency packets use a different balancing scheme */
 	if (skb->priority == 0xda1a)
@@ -412,7 +420,6 @@ rx_handler_result_t rmnet_rx_priv_handler(struct sk_buff **pskb)
 		return rc;
 
 	rmnet_module_hook_perf_ingress_rx_handler(skb);
-
 	return RX_HANDLER_PASS;
 }
 

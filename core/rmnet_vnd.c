@@ -117,14 +117,12 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 		if (RMNET_APS_LLC(skb->priority))
 			low_latency = true;
 
-#if IS_ENABLED(CONFIG_IPA3)
 		if ((priv->real_dev->features & NETIF_F_HW_ESP) &&
 		    (priv->real_dev->hw_enc_features & NETIF_F_HW_ESP) &&
 		    (skb->ipa_skb_cb.magic == IPA_IPSEC_SKB_MAGIC)) {
 			ipsec = skb->ipa_skb_cb.sa_dir;
 			priv->stats.ul_ipsec++;
 		}
-#endif /* IS_ENABLED(CONFIG_IPA3) */
 
 		if ((low_latency || RMNET_APS_LLB(skb->priority)) &&
 		    skb_is_gso(skb) && !ipsec) {

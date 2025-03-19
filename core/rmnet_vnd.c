@@ -25,7 +25,6 @@
 #include <linux/icmpv6.h>
 #include <linux/ethtool.h>
 #include <linux/ipa.h>
-#include <linux/xarray.h>
 #include <net/pkt_sched.h>
 #include <net/ipv6.h>
 #include <net/xfrm.h>
@@ -964,76 +963,6 @@ void rmnet_vnd_reset_mac_addr(struct net_device *dev)
 		return;
 
 	random_ether_addr(dev->perm_addr);
-}
-
-int rmnet_vnd_update_queue_map(struct net_device *dev, u8 operation,
-			       u8 txqueue, u32 mark,
-			       struct netlink_ext_ack *extack)
-{
-	struct rmnet_priv *priv = netdev_priv(dev);
-	struct netdev_queue *q;
-	void *p;
-	u8 txq;
-
-	if (unlikely(txqueue >= dev->num_tx_queues)) {
-		NL_SET_ERR_MSG_MOD(extack, "invalid txqueue");
-		return -EINVAL;
-	}
-
-	switch (operation) {
-	case RMNET_QUEUE_MAPPING_ADD:
-		p = xa_store(&priv->queue_map, mark, xa_mk_value(txqueue),
-			     GFP_ATOMIC);
-		if (xa_is_err(p)) {
-			NL_SET_ERR_MSG_MOD(extack, "unable to add mapping");
-			return xa_err(p);
-		}
-
-		trace_rmnet_queue_mapping_add(priv->mux_id, txqueue, mark);
-		break;
-	case RMNET_QUEUE_MAPPING_REMOVE:
-		p = xa_erase(&priv->queue_map, mark);
-		if (xa_is_err(p)) {
-			NL_SET_ERR_MSG_MOD(extack, "unable to remove mapping");
-			return xa_err(p);
-		}
-
-		trace_rmnet_queue_mapping_remove(priv->mux_id, txqueue, mark);
-		break;
-	case RMNET_QUEUE_ENABLE:
-	case RMNET_QUEUE_DISABLE:
-		p = xa_load(&priv->queue_map, mark);
-		if (p && xa_is_value(p)) {
-			txq = xa_to_value(p);
-
-			q = netdev_get_tx_queue(dev, txq);
-			if (unlikely(!q)) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "unsupported queue mapping");
-				return -EINVAL;
-			}
-
-			if (operation == RMNET_QUEUE_ENABLE) {
-				netif_tx_wake_queue(q);
-				trace_rmnet_queue_enable(priv->mux_id, txq,
-							 mark);
-			} else {
-				netif_tx_stop_queue(q);
-				trace_rmnet_queue_disable(priv->mux_id, txq,
-							  mark);
-			}
-		} else {
-			NL_SET_ERR_MSG_MOD(extack, "invalid queue mapping");
-			return -EINVAL;
-		}
-
-		break;
-	default:
-		NL_SET_ERR_MSG_MOD(extack, "unsupported queue operation");
-		return -EOPNOTSUPP;
-	}
-
-	return 0;
 }
 
 int netif_is_rmnet(const struct net_device *dev)

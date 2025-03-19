@@ -34,4 +34,7 @@ rx_handler_result_t _rmnet_map_ingress_handler(struct sk_buff *skb,
 					       struct rmnet_port *port);
 rx_handler_result_t rmnet_rx_handler(struct sk_buff **pskb);
 rx_handler_result_t rmnet_rx_priv_handler(struct sk_buff **pskb);
+int rmnet_ipa_notify_cb(struct notifier_block *nb,
+			unsigned long event, void *data);
+
 #endif /* _RMNET_HANDLERS_H_ */

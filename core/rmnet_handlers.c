@@ -329,7 +329,7 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 
 	if (csum_type)
 		rmnet_map_checksum_uplink_packet(skb, port, orig_dev,
-						 csum_type);
+						 csum_type, low_latency);
 
 	map_header = rmnet_map_add_map_header(skb, additional_header_len, 0,
 					      port);

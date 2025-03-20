@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -505,7 +505,7 @@ sw_csum:
 static void rmnet_map_v5_check_priority(struct sk_buff *skb,
 					struct net_device *orig_dev,
 					struct rmnet_map_v5_csum_header *hdr,
-					bool tso)
+					bool tso, bool low_latency)
 {
 	struct rmnet_priv *priv = netdev_priv(orig_dev);
 
@@ -515,15 +515,21 @@ static void rmnet_map_v5_check_priority(struct sk_buff *skb,
 	}
 
 	/* APS priority bit is only valid for csum header */
-	if (!tso && RMNET_APS_LLB(skb->priority)) {
-		priv->stats.aps_prio++;
-		hdr->aps_prio = 1;
+	if (!tso && low_latency) {
+		if (RMNET_APS_LLB(skb->priority)) {
+			priv->stats.ul_prio++;
+			hdr->priority = 1;
+		} else {
+			priv->stats.aps_prio++;
+			hdr->aps_prio = 1;
+		}
 	}
 }
 
 void rmnet_map_v5_checksum_uplink_packet(struct sk_buff *skb,
 					 struct rmnet_port *port,
-					 struct net_device *orig_dev)
+					 struct net_device *orig_dev,
+					 bool low_latency)
 {
 	struct rmnet_priv *priv = netdev_priv(orig_dev);
 	struct rmnet_map_v5_csum_header *ul_header;
@@ -534,7 +540,7 @@ void rmnet_map_v5_checksum_uplink_packet(struct sk_buff *skb,
 	ul_header->header_type = RMNET_MAP_HEADER_TYPE_CSUM_OFFLOAD;
 
 	if (port->data_format & RMNET_EGRESS_FORMAT_PRIORITY)
-		rmnet_map_v5_check_priority(skb, orig_dev, ul_header, false);
+		rmnet_map_v5_check_priority(skb, orig_dev, ul_header, false, low_latency);
 
 	/* Allow priority w/o csum offload */
 	if (!(port->data_format & RMNET_PRIV_FLAGS_EGRESS_MAP_CKSUMV5))
@@ -581,14 +587,14 @@ sw_csum:
 void rmnet_map_checksum_uplink_packet(struct sk_buff *skb,
 				      struct rmnet_port *port,
 				      struct net_device *orig_dev,
-				      int csum_type)
+				      int csum_type, bool low_latency)
 {
 	switch (csum_type) {
 	case RMNET_FLAGS_EGRESS_MAP_CKSUMV4:
 		rmnet_map_v4_checksum_uplink_packet(skb, orig_dev);
 		break;
 	case RMNET_PRIV_FLAGS_EGRESS_MAP_CKSUMV5:
-		rmnet_map_v5_checksum_uplink_packet(skb, port, orig_dev);
+		rmnet_map_v5_checksum_uplink_packet(skb, port, orig_dev, low_latency);
 		break;
 	default:
 		break;
@@ -1725,7 +1731,7 @@ int rmnet_map_add_tso_header(struct sk_buff *skb, struct rmnet_port *port,
 	if (port->data_format & RMNET_EGRESS_FORMAT_PRIORITY)
 		rmnet_map_v5_check_priority(skb, orig_dev,
 					    (struct rmnet_map_v5_csum_header *)ul_header,
-					    true);
+					    true, false);
 
 	ul_header->segment_size = htons(skb_shinfo(skb)->gso_size);
 

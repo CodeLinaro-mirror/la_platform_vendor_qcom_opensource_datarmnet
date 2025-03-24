@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2018, 2020-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022,2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -29,5 +29,8 @@ void rmnet_vnd_tx_fixup(struct net_device *dev, u32 skb_len);
 u8 rmnet_vnd_get_mux(struct net_device *rmnet_dev);
 void rmnet_vnd_setup(struct net_device *dev);
 void rmnet_vnd_reset_mac_addr(struct net_device *dev);
+int rmnet_vnd_update_queue_map(struct net_device *dev, u8 operation,
+			       u8 txqueue, u32 mark,
+			       struct netlink_ext_ack *extack);
 int netif_is_rmnet(const struct net_device *dev);
 #endif /* _RMNET_VND_H_ */

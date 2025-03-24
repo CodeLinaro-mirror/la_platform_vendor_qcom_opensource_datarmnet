@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -523,6 +523,7 @@ static int rmnet_eth_register_real_device(struct net_device *real_dev)
 void rmnet_eth_setup(struct net_device *rmnet_eth_dev)
 {
 	ether_setup(rmnet_eth_dev);
+	rmnet_eth_dev->max_mtu = RMNET_ETH_MAX_MTU;
 	eth_hw_addr_random(rmnet_eth_dev);
 	rmnet_eth_dev->netdev_ops = &rmnet_veth_ops;
 	rmnet_eth_dev->needed_headroom = RMNET_ETH_NEEDED_HEADROOM;

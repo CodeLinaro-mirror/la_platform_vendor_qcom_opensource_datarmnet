@@ -7,6 +7,8 @@
 */
 
 #include "rmnet_genl.h"
+#include "rmnet_config.h"
+#include "rmnet_vnd.h"
 #include <net/sock.h>
 #include <linux/skbuff.h>
 #include <linux/ktime.h>
@@ -22,6 +24,7 @@ static struct nla_policy rmnet_genl_attr_policy[RMNET_CORE_GENL_ATTR_MAX +
 	[RMNET_CORE_GENL_ATTR_TETHER_INFO] = NLA_POLICY_EXACT_LEN(sizeof(struct rmnet_core_tether_info_req)),
 	[RMNET_CORE_GENL_ATTR_STR]  = { .type = NLA_NUL_STRING, .len =
 				RMNET_CORE_GENL_MAX_STR_LEN },
+	[RMNET_CORE_GENL_ATTR_QUEUE_MAPPING] = NLA_POLICY_EXACT_LEN(sizeof(struct rmnet_queue_mapping)),
 };
 
 #define RMNET_CORE_GENL_OP(_cmd, _func)			\
@@ -39,16 +42,19 @@ static const struct genl_ops rmnet_core_genl_ops[] = {
 			   rmnet_core_genl_pid_boost_req_hdlr),
 	RMNET_CORE_GENL_OP(RMNET_CORE_GENL_CMD_TETHER_INFO_REQ,
 			   rmnet_core_genl_tether_info_req_hdlr),
+	RMNET_CORE_GENL_OP(RMNET_CORE_GENL_CMD_QUEUE_MAPPING,
+			   rmnet_core_genl_queue_mapping_hdlr),
 };
 
 struct genl_family rmnet_core_genl_family = {
-	.hdrsize = 0,
-	.name    = RMNET_CORE_GENL_FAMILY_NAME,
-	.version = RMNET_CORE_GENL_VERSION,
-	.maxattr = RMNET_CORE_GENL_ATTR_MAX,
-	.policy  = rmnet_genl_attr_policy,
-	.ops     = rmnet_core_genl_ops,
-	.n_ops   = ARRAY_SIZE(rmnet_core_genl_ops),
+	.hdrsize	= 0,
+	.name		= RMNET_CORE_GENL_FAMILY_NAME,
+	.version	= RMNET_CORE_GENL_VERSION,
+	.maxattr	= RMNET_CORE_GENL_ATTR_MAX,
+	.policy		= rmnet_genl_attr_policy,
+	.parallel_ops	= 1,
+	.ops		= rmnet_core_genl_ops,
+	.n_ops		= ARRAY_SIZE(rmnet_core_genl_ops),
 };
 
 #define RMNET_PID_STATS_HT_SIZE (8)
@@ -429,6 +435,47 @@ int rmnet_core_genl_tether_info_req_hdlr(struct sk_buff *skb_2,
 
 	rm_err("CORE_GNL: tether filters %s",
 	       tether_info_req.tether_filters_en ? "enabled" : "disabled");
+
+	return RMNET_GENL_SUCCESS;
+}
+
+int rmnet_core_genl_queue_mapping_hdlr(struct sk_buff *skb_2,
+				       struct genl_info *info)
+{
+	struct rmnet_queue_mapping *queue_map;
+	struct net_device *dev;
+	int err;
+
+	if (!info)
+		return RMNET_GENL_FAILURE;
+
+	if (!info->attrs[RMNET_CORE_GENL_ATTR_QUEUE_MAPPING]) {
+		GENL_SET_ERR_MSG(info, "Must provide queue attribute");
+		return RMNET_GENL_FAILURE;
+	}
+
+	if (!info->attrs[RMNET_CORE_GENL_ATTR_STR]) {
+		GENL_SET_ERR_MSG(info, "Must provide device name");
+		return RMNET_GENL_FAILURE;
+	}
+
+	rtnl_lock();
+	dev = __dev_get_by_name(genl_info_net(info),
+			        nla_data(info->attrs[RMNET_CORE_GENL_ATTR_STR]));
+	if (!dev) {
+		GENL_SET_ERR_MSG(info, "No matching device name");
+		rtnl_unlock();
+		return RMNET_GENL_FAILURE;
+	}
+
+	queue_map = nla_data(info->attrs[RMNET_CORE_GENL_ATTR_QUEUE_MAPPING]);
+	err = rmnet_vnd_update_queue_map(dev, queue_map->operation,
+					 queue_map->txqueue,
+					 queue_map->mark,
+					 info->extack);
+	rtnl_unlock();
+	if (err < 0)
+		return RMNET_GENL_FAILURE;
 
 	return RMNET_GENL_SUCCESS;
 }

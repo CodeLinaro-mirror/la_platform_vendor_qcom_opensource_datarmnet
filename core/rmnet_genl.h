@@ -32,6 +32,7 @@ enum {
 	RMNET_CORE_GENL_CMD_PID_BPS_REQ,
 	RMNET_CORE_GENL_CMD_PID_BOOST_REQ,
 	RMNET_CORE_GENL_CMD_TETHER_INFO_REQ,
+	RMNET_CORE_GENL_CMD_QUEUE_MAPPING,
 	__RMNET_CORE_GENL_CMD_MAX,
 };
 
@@ -42,6 +43,7 @@ enum {
 	RMNET_CORE_GENL_ATTR_PID_BPS,
 	RMNET_CORE_GENL_ATTR_PID_BOOST,
 	RMNET_CORE_GENL_ATTR_TETHER_INFO,
+	RMNET_CORE_GENL_ATTR_QUEUE_MAPPING,
 	__RMNET_CORE_GENL_ATTR_MAX,
 };
 
@@ -96,6 +98,9 @@ int rmnet_core_genl_pid_boost_req_hdlr(struct sk_buff *skb_2,
 
 int rmnet_core_genl_tether_info_req_hdlr(struct sk_buff *skb_2,
 					 struct genl_info *info);
+
+int rmnet_core_genl_queue_mapping_hdlr(struct sk_buff *skb_2,
+				       struct genl_info *info);
 
 /* Called by vnd select queue */
 void rmnet_update_pid_and_check_boost(pid_t pid, unsigned int len,

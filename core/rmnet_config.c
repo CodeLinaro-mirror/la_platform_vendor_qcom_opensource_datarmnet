@@ -28,6 +28,7 @@
 #include "rmnet_genl.h"
 #include "rmnet_qmi.h"
 #include "qmi_rmnet.h"
+#include <linux/ipa.h>
 #define CONFIG_QTI_QMI_RMNET 1
 #define CONFIG_QTI_QMI_DFC  1
 #define CONFIG_QTI_QMI_POWER_COLLAPSE 1
@@ -139,7 +140,10 @@ static int rmnet_register_real_device(struct net_device *real_dev)
 
 	rmnet_map_tx_aggregate_init(port);
 	rmnet_map_cmd_init(port);
-
+	if (ipa_register_notifier(&rmnet_ipa_notify_cb) < 0) {
+		rc = -ENOMEM;
+		goto err;
+	}
 
 	for (entry = 0; entry < RMNET_MAX_LOGICAL_EP; entry++)
 		INIT_HLIST_HEAD(&port->muxed_ep[entry]);
@@ -882,6 +886,7 @@ static void __exit rmnet_exit(void)
 	rtnl_link_unregister(&rmnet_link_ops);
 	rmnet_ll_exit();
 	rmnet_core_genl_deinit();
+	ipa_unregister_notifier(&rmnet_ipa_notify_cb);
 
 	module_put(THIS_MODULE);
 }

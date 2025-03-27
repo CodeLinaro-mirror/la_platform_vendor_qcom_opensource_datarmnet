@@ -29,6 +29,8 @@
 #include <linux/ipv6.h>
 #include <linux/suspend.h>
 #include <linux/notifier.h>
+#include <linux/ipa.h>
+#include "rmnet_mem.h"
 
 #define NLMSG_FLOW_ACTIVATE 1
 #define NLMSG_FLOW_DEACTIVATE 2
@@ -1171,6 +1173,7 @@ void qmi_rmnet_ps_on_notify(void *port)
 {
 	struct qmi_rmnet_ps_ind *tmp;
 
+	rmnet_mem_cb(POWER_SAVE_NOTIF, NULL);
 	list_for_each_entry_rcu(tmp, &ps_list, list)
 		tmp->ps_on_handler(port);
 }

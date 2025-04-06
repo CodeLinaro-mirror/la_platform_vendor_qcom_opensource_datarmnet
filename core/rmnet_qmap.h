@@ -70,5 +70,6 @@ int ll_qmap_cmd_handler(struct sk_buff *skb);
 #define QMAP_CMD_41		41
 #define QMAP_CMD_42		42
 #define QMAP_CMD_43		43
+#define QMAP_CMD_44		44
 
 #endif /* __RMNET_QMAP_H */

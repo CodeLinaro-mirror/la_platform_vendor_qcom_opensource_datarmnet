@@ -92,6 +92,7 @@ static void rmnet_qmap_cmd_handler(struct sk_buff *skb)
 	case QMAP_CMD_41:
 	case QMAP_CMD_42:
 	case QMAP_CMD_43:
+	case QMAP_CMD_44:
 		rmnet_module_hook_perf_cmd_ingress(skb);
 		rc = QMAP_CMD_DONE;
 		break;

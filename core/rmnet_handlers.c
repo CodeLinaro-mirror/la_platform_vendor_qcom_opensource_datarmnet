@@ -21,6 +21,7 @@
 #include <linux/ipv6.h>
 #include <linux/inet.h>
 #include <net/sock.h>
+#include <linux/ipa.h>
 #include <linux/tracepoint.h>
 #include "rmnet_private.h"
 #include "rmnet_config.h"
@@ -30,7 +31,7 @@
 #include "rmnet_descriptor.h"
 #include "rmnet_ll.h"
 #include "rmnet_module.h"
-
+#include "rmnet_mem.h"
 
 #include "rmnet_qmi.h"
 #include "qmi_rmnet.h"
@@ -476,4 +477,11 @@ void rmnet_egress_handler(struct sk_buff *skb, bool low_latency)
 drop:
 	this_cpu_inc(priv->pcpu_stats->stats.tx_drops);
 	kfree_skb(skb);
+}
+
+int rmnet_ipa_notify_cb(struct notifier_block *nb,
+			unsigned long event, void *data)
+{
+	rmnet_mem_cb(event, data);
+	return 0;
 }

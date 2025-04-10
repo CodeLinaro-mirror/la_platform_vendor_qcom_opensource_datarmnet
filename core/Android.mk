@@ -3,6 +3,7 @@ ifneq ($(TARGET_BOARD_PLATFORM),qssi)
 RMNET_CORE_DLKM_PLATFORMS_LIST := sun
 RMNET_CORE_DLKM_PLATFORMS_LIST += canoe
 RMNET_CORE_DLKM_PLATFORMS_LIST += vienna
+RMNET_CORE_DLKM_PLATFORMS_LIST += lahaina
 
 ifeq ($(call is-board-platform-in-list, $(RMNET_CORE_DLKM_PLATFORMS_LIST)),true)
 #Make file to create RMNET_CORE DLKM

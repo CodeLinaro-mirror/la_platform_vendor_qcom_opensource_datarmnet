@@ -236,7 +236,8 @@ static void
 rmnet_map_ingress_handler(struct sk_buff *skb,
 			  struct rmnet_port *port)
 {
-	struct sk_buff *skbn;
+	int is_chained_skb = 0;
+	struct sk_buff *skbn, *head_skb;
 
 	if (skb->dev->type == ARPHRD_ETHER) {
 		if (pskb_expand_head(skb, ETH_HLEN, 0, GFP_ATOMIC)) {
@@ -264,10 +265,13 @@ rmnet_map_ingress_handler(struct sk_buff *skb,
 	/* Deaggregation and freeing of HW originating
 	 * buffers is done within here
 	 */
+	head_skb = skb;
 	while (skb) {
 		struct sk_buff *skb_frag = skb_shinfo(skb)->frag_list;
+		struct sk_buff *skb_next = skb->next;
 
 		skb_shinfo(skb)->frag_list = NULL;
+		skb->next = NULL;
 		while ((skbn = rmnet_map_deaggregate(skb, port)) != NULL) {
 			__rmnet_map_ingress_handler(skbn, port);
 
@@ -277,7 +281,20 @@ rmnet_map_ingress_handler(struct sk_buff *skb,
 
 		consume_skb(skb);
 next_skb:
-		skb = skb_frag;
+		if (head_skb == skb) {
+			skb = skb_frag;
+			if (skb_frag) {
+				is_chained_skb = 1;
+				port->stats.chained_packets_recvd++;
+			}
+		} else  {
+			skb = skb_next;
+			/* No longer expected to use older skb chain format */
+			WARN_ON(skb_frag != NULL);
+		}
+
+		if (is_chained_skb)
+			port->stats.packets_chained++;
 	}
 }
 

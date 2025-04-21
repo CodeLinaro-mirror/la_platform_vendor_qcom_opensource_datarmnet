@@ -596,6 +596,8 @@ static const char rmnet_port_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"IPSEC DL invalid command",
 	"IPSEC DL invalid mux",
 	"IPSEC DL invalid endpoint",
+	"Chained packets received",
+	"Packets chained",
 };
 
 static const char rmnet_ll_gstrings_stats[][ETH_GSTRING_LEN] = {

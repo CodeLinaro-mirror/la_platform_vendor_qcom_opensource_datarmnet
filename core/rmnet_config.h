@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2014, 2016-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -113,6 +113,8 @@ struct rmnet_port_priv_stats {
 	u64 dl_ipsec_invalid_cmd;
 	u64 dl_ipsec_invalid_mux;
 	u64 dl_ipsec_invalid_endpoint;
+	u64 chained_packets_recvd;
+	u64 packets_chained;
 };
 
 struct rmnet_egress_agg_params {

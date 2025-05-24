@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,7 +27,6 @@
 #define RMNET_ETH_NEEDED_HEADROOM (16)
 #define RMNET_ETH_PREFIX          "rmnet_eth"
 #define RMNET_ETH_PHY_PREFIX      "rmnet_ipa"
-#define RMNET_ETH_MAX_MTU         (2000)
 
 struct rmnet_endpoint;
 

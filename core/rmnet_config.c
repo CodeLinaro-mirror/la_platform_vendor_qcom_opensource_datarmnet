@@ -272,11 +272,12 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 			 struct netlink_ext_ack *extack)
 {
 	struct rmnet_priv *priv = NULL;
+	u32 data_format = RMNET_FLAGS_INGRESS_DEAGGREGATION;
 	struct net_device *real_dev;
 	int mode = RMNET_EPMODE_VND;
 	struct rmnet_endpoint *ep;
 	struct rmnet_port *port;
-	u32 data_format;
+//	u32 data_format;
 	int err = 0;
 	u16 mux_id;
 
@@ -294,27 +295,37 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 	mux_id = nla_get_u16(data[IFLA_RMNET_MUX_ID]);
 
 	err = rmnet_register_real_device(real_dev);
-	if (err)
+	if (err) {
+		pr_err("%s() DEBUG ANAGHG err0", __func__);
 		goto err0;
+	}
 
 	port = rmnet_get_port_rtnl(real_dev);
 	err = rmnet_vnd_newlink(mux_id, dev, port, real_dev, ep);
-	if (err)
+	if (err){ 
+		pr_err("%s() DEBUG ANAGHG err1", __func__);
 		goto err1;
+	}
 
 	err = netdev_upper_dev_link(real_dev, dev, extack);
-	if (err < 0)
+	if (err < 0) {
+		pr_err("%s() DEBUG ANAGHG err2", __func__);
 		goto err2;
+	}
 
 	port->rmnet_mode = mode;
-
+//	port->rmnet_dev = dev;
 	hlist_add_head_rcu(&ep->hlnode, &port->muxed_ep[mux_id]);
 
 	if (data[IFLA_RMNET_FLAGS]) {
 		struct ifla_rmnet_flags *flags;
 
 		flags = nla_data(data[IFLA_RMNET_FLAGS]);
-		data_format = flags->flags & flags->mask;
+		pr_err("%s() ANAGHG DEBUG flags sent to us --> 0x%08X", __func__, flags->flags);
+		data_format &= ~flags->mask;
+		data_format |= flags->flags & flags->mask;
+//		data_format = flags->flags & flags->mask;
+		pr_err("%s() ANAGHG DEBUG dataformat [0x%08X]\n", __func__, data_format);
 		netdev_dbg(dev, "data format [0x%08X]\n", data_format);
 		port->data_format = data_format;
 	}
@@ -322,7 +333,7 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 	if (data[IFLA_RMNET_UL_AGG_PARAMS]) {
 		struct rmnet_egress_agg_params *agg_params;
 		u8 state = RMNET_DEFAULT_AGG_STATE;
-
+		pr_err("%s() ANAGHG DEBUG UL_AGG_PARAM", __func__);
 		agg_params = nla_data(data[IFLA_RMNET_UL_AGG_PARAMS]);
 		if (data[IFLA_RMNET_UL_AGG_STATE_ID])
 			state = nla_get_u8(data[IFLA_RMNET_UL_AGG_STATE_ID]);
@@ -335,12 +346,14 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 	}
 
 	priv = netdev_priv(dev);
-	if (data[IFLA_RMNET_ROUTE_MODE])
+	if (data[IFLA_RMNET_ROUTE_MODE]) {
+		pr_err("%s() ANAGHG DEBUG ROUTE MODE", __func__);
 		priv->route_mode = nla_get_u8(data[IFLA_RMNET_ROUTE_MODE]);
+	}
 
 	if (data[IFLA_RMNET_IP_ROUTE_PARAMS]) {
 		struct rmnet_ip_route_params *ip_route_params = NULL;
-
+		pr_err("%s() ANAGHG DEBUG RMNET_IP_ROUTE_PARAM", __func__);
 		if (port->data_format & RMNET_INGRESS_FORMAT_IP_ROUTE) {
 			ip_route_params = nla_data(data[IFLA_RMNET_IP_ROUTE_PARAMS]);
 			memcpy(&port->ip_route_params, ip_route_params,
@@ -350,19 +363,22 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 
 	if (data[IFLA_RMNET_QUEUE]) {
 		struct rmnet_queue_mapping *queue_map;
-
+		pr_err("%s() ANAGHG DEBUG RMNET_QUEUE", __func__);
 		queue_map = nla_data(data[IFLA_RMNET_QUEUE]);
 		err = rmnet_update_queue_map(dev, queue_map->operation,
 					     queue_map->txqueue,
 					     queue_map->mark, extack);
-		if (err < 0)
+		if (err < 0) {
+			pr_err("%s() DEBUG ANAGHG err3", __func__);
 			goto err3;
+		}
 
 		netdev_dbg(dev, "op %02x txq %02x mark %08x\n",
 			   queue_map->operation, queue_map->txqueue,
 			   queue_map->mark);
 	}
 
+	pr_err("%s() DEBUG ANAGHG return 0", __func__);
 	return 0;
 
 err3:

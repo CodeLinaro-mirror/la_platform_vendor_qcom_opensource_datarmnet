@@ -10,6 +10,8 @@ ifeq (y, $(filter y, $(CONFIG_ARCH_SDXLEMUR) $(CONFIG_ARCH_SDXBAAGHA)))
 ccflags-y       += -Wframe-larger-than=2048
 endif
 
+ccflags-y	+= -DTARGET_PRPL
+
 obj-m += rmnet_core.o
 
 #core sources

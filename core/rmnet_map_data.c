@@ -1346,8 +1346,10 @@ static struct page *rmnet_get_agg_pages(struct rmnet_aggregation_state *state)
 	struct page *page = NULL;
 	int i = 0;
 
+#ifndef TARGET_PRPL
 	if (!(state->params.agg_features & RMNET_PAGE_RECYCLE))
 		goto alloc;
+#endif
 
 	do {
 		agg_page = state->agg_head;
@@ -1367,7 +1369,9 @@ static struct page *rmnet_get_agg_pages(struct rmnet_aggregation_state *state)
 		i++;
 	} while (i <= 5);
 
+#ifndef TARGET_PRPL
 alloc:
+#endif
 	if (!page) {
 		page =  __dev_alloc_pages(GFP_ATOMIC, state->agg_size_order);
 		state->stats->ul_agg_alloc++;
@@ -1375,7 +1379,7 @@ alloc:
 
 	return page;
 }
-
+#ifndef TARGET_PRPL
 static struct rmnet_agg_page *
 __rmnet_alloc_agg_pages(struct rmnet_aggregation_state *state)
 {
@@ -1413,7 +1417,7 @@ static void rmnet_alloc_agg_pages(struct rmnet_aggregation_state *state)
 	state->agg_head = list_first_entry_or_null(&state->agg_list,
 						   struct rmnet_agg_page, list);
 }
-
+#endif
 static struct sk_buff *
 rmnet_map_build_skb(struct rmnet_aggregation_state *state)
 {
@@ -1564,8 +1568,10 @@ void rmnet_map_update_ul_agg_config(struct rmnet_aggregation_state *state,
 	size -= SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 	state->params.agg_size = size;
 
+#ifndef TARGET_PRPL
 	if (state->params.agg_features == RMNET_PAGE_RECYCLE)
 		rmnet_alloc_agg_pages(state);
+#endif
 
 done:
 	spin_unlock_bh(&state->agg_lock);

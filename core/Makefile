@@ -9,6 +9,8 @@ else
 CCFLAGS += -m32
 endif
 
+EXTRA_CFLAGS+=-DTARGET_PRPL
+
 M ?= $(shell pwd)
 #obj-m := rmnet_core.o rmnet_ctl.o
 

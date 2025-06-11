@@ -83,9 +83,9 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 					struct net_device *dev)
 {
 	struct rmnet_priv *priv;
-	int ip_type;
-	u32 mark;
-	unsigned int len;
+	int ip_type = 0;
+	u32 mark = 0;
+	unsigned int len = 0;
 	rmnet_perf_tether_egress_hook_t rmnet_perf_tether_egress;
 	bool low_latency = false;
 	bool need_to_drop = false;

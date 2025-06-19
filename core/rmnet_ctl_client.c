@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * RMNET_CTL client handlers
  *
@@ -81,9 +81,9 @@ void rmnet_ctl_endpoint_post(const void *data, size_t len)
 
 	if (len == 0xFFFFFFFF) {
 		skb = (struct sk_buff *)data;
-		rmnet_ctl_log_info("RX", skb->data, skb->len);
 
 		rcu_read_lock();
+		rmnet_ctl_log_info("RX", skb->data, skb->len);
 
 		client = rcu_dereference(ctl_ep.client);
 		if (client && client->hooks.ctl_dl_client_hook) {
@@ -95,9 +95,9 @@ void rmnet_ctl_endpoint_post(const void *data, size_t len)
 
 		rcu_read_unlock();
 	} else {
-		rmnet_ctl_log_info("RX", data, len);
 
 		rcu_read_lock();
+		rmnet_ctl_log_info("RX", data, len);
 
 		client = rcu_dereference(ctl_ep.client);
 		if (client && client->hooks.ctl_dl_client_hook) {
@@ -179,9 +179,9 @@ int rmnet_ctl_send_client(void *handle, struct sk_buff *skb)
 		return rc;
 	}
 
-	rmnet_ctl_log_info("TX", skb->data, skb->len);
 
 	rcu_read_lock();
+	rmnet_ctl_log_info("TX", skb->data, skb->len);
 
 	dev = rcu_dereference(ctl_ep.dev);
 	if (dev && dev->xmit)
@@ -189,10 +189,9 @@ int rmnet_ctl_send_client(void *handle, struct sk_buff *skb)
 	else
 		kfree_skb(skb);
 
-	rcu_read_unlock();
-
 	if (rc)
 		rmnet_ctl_log_err("TXE", rc, NULL, 0);
+	rcu_read_unlock();
 
 	return rc;
 }

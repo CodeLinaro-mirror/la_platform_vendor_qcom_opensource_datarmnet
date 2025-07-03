@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -72,6 +73,15 @@ unsigned int rmnet_wq_frequency __read_mostly = 1000;
 static unsigned int qmi_rmnet_scale_factor = 5;
 static LIST_HEAD(qos_cleanup_list);
 #endif
+
+static int qmi_rmnet_pm_notify_cb(struct notifier_block *notifier,
+		unsigned long pm_event, void *unused);
+
+static struct notifier_block dfc_pm_notifier = {
+	.notifier_call = qmi_rmnet_pm_notify_cb,
+};
+
+static struct qmi_info __rcu *qmi_info_ptr = NULL;
 
 static int
 qmi_rmnet_del_flow(struct net_device *dev, struct tcmsg *tcm,
@@ -148,6 +158,19 @@ qmi_rmnet_has_pending(struct qmi_info *qmi)
 	}
 
 	return 0;
+}
+
+void qmi_reset_pm_notifier_state(u8 register_for_pm)
+{
+	if (register_for_pm) {
+		register_pm_notifier(&dfc_pm_notifier);
+		pr_err("RMNET registered pm_notifier\n");
+	}
+	else {
+		unregister_pm_notifier(&dfc_pm_notifier);
+		pr_err("RMNET De-registered pm_notifier\n");
+
+	}
 }
 
 #ifdef CONFIG_QTI_QMI_DFC
@@ -583,8 +606,7 @@ struct rmnet_bearer_map *qmi_rmnet_get_bearer_noref(struct qos_info *qos_info,
 	return bearer;
 }
 
-static int qmi_rmnet_pm_notify_cb(struct notifier_block *notifier,
-		unsigned long pm_event, void *unused);
+
 
 #else
 static inline void
@@ -632,12 +654,6 @@ qmi_rmnet_setup_client(void *port, struct qmi_info *qmi, struct tcmsg *tcm)
 			return -ENOMEM;
 
 		rmnet_init_qmi_pt(port, qmi);
-		/* pm-register is only needed once when first client is setup
-		 * and not per client
-		 */
-		((struct rmnet_port *)port)->dfc_pm_notifier.notifier_call
-					 = qmi_rmnet_pm_notify_cb;
-		register_pm_notifier(&(((struct rmnet_port *)port)->dfc_pm_notifier));
 	}
 
 	qmi->flag = tcm->tcm_ifindex;
@@ -726,7 +742,6 @@ int qmi_rmnet_change_link(struct net_device *dev, void *port, void *tcm_pt,
 {
 	struct qmi_info *qmi = (struct qmi_info *)rmnet_get_qmi_pt(port);
 	struct tcmsg *tcm = (struct tcmsg *)tcm_pt;
-	struct notifier_block *nb;
 	void *wda_data = NULL;
 	int rc = 0;
 
@@ -760,8 +775,6 @@ int qmi_rmnet_change_link(struct net_device *dev, void *port, void *tcm_pt,
 			if (qmi &&
 			    !qmi_rmnet_has_client(qmi) &&
 			    !qmi_rmnet_has_pending(qmi)) {
-				nb = &(((struct rmnet_port *)port)->dfc_pm_notifier);
-				unregister_pm_notifier(nb);
 				rmnet_reset_qmi_pt(port);
 				kfree(qmi);
 			}
@@ -773,7 +786,15 @@ int qmi_rmnet_change_link(struct net_device *dev, void *port, void *tcm_pt,
 			qmi_rmnet_work_init(port);
 			rmnet_set_powersave_format(port);
 		}
+
 		rmnet_ll_wq_init();
+
+		qmi = (struct qmi_info *)rmnet_get_qmi_pt(port);
+		if (qmi) {
+			qmi->port = port;
+			rcu_assign_pointer(qmi_info_ptr, qmi);
+		}
+
 		break;
 	case NLMSG_CLIENT_DELETE:
 		if (!qmi)
@@ -1244,18 +1265,31 @@ EXPORT_SYMBOL(qmi_rmnet_set_powersave_mode);
 static int qmi_rmnet_pm_notify_cb(struct notifier_block *notifier,
 		unsigned long pm_event, void *unused)
 {
-	struct qmi_info *qmi;
-	struct rmnet_port *port;
-	u8 num_bearers;
-
-	port = container_of(notifier, struct rmnet_port, dfc_pm_notifier);
-	qmi = port->qmi_info;
+	struct rmnet_port *port = NULL;
+	struct qmi_info *qmi = NULL;
+	u8 num_bearers, notify_ps_on = 0;
 
 	trace_dfc_pm_event(pm_event);
-	switch (pm_event) {
-	case PM_SUSPEND_PREPARE:
-		cancel_delayed_work_sync(&rmnet_work->work);
+
+	if (PM_SUSPEND_PREPARE == pm_event) {
+
+		if (rmnet_work && !rmnet_work_quit && rmnet_work_inited) {
+			cancel_delayed_work_sync(&rmnet_work->work);
+		}
+
+		rcu_read_lock();
+
+		qmi = rcu_dereference(qmi_info_ptr);
+
+		if (!qmi) {
+			pr_err("%s() QMI client is NULL, Ignoring \n", __func__);
+			rcu_read_unlock();
+			goto done;
+		}
+
+		port = qmi->port;
 		if (!qmi->ps_enabled) {
+
 			qmi->ps_ignore_grant = true;
 			qmi->ps_enabled = true;
 			rmnet_module_hook_aps_data_inactive();
@@ -1266,7 +1300,6 @@ static int qmi_rmnet_pm_notify_cb(struct notifier_block *notifier,
 			memset(ps_bearer_id, 0, sizeof(ps_bearer_id));
 			rmnet_prepare_ps_bearers(port, &num_bearers,
 						 ps_bearer_id);
-
 			/* Enter powersave */
 			if (dfc_qmap)
 				dfc_qmap_set_powersave(1, num_bearers, ps_bearer_id);
@@ -1274,20 +1307,32 @@ static int qmi_rmnet_pm_notify_cb(struct notifier_block *notifier,
 				qmi_rmnet_set_powersave_mode(port, 1,
 							     num_bearers, ps_bearer_id);
 
-			if (rmnet_get_powersave_notif(port))
-				qmi_rmnet_ps_on_notify(port);
-
+			notify_ps_on = 1;
 		}
-		break;
-	case PM_POST_SUSPEND:
+		rcu_read_unlock();
+
+	} else if (PM_POST_SUSPEND  == pm_event) {
+		rcu_read_lock();
+		qmi = rcu_dereference(qmi_info_ptr);
+
+		if (!qmi) {
+			pr_err("%s() QMI client is NULL, Ignoring\n", __func__);
+			rcu_read_unlock();
+			goto done;
+		}
+
 		/* Clear the bit before enabling flow so pending packets
 		 * can trigger the work again
 		 */
 		clear_bit(PS_WORK_ACTIVE_BIT, &qmi->ps_work_active);
-		break;
-	default:
-		break;
+		rcu_read_unlock();
 	}
+
+	if (port && rmnet_get_powersave_notif(port) && notify_ps_on) {
+		pr_err("%s() Notify PS ON to clients\n", __func__);
+		qmi_rmnet_ps_on_notify(port);
+	}
+done:
 	return NOTIFY_DONE;
 }
 
@@ -1537,9 +1582,8 @@ void qmi_rmnet_work_exit(void *port)
 		return;
 
 	rmnet_work_quit = true;
+	RCU_INIT_POINTER(qmi_info_ptr, NULL);
 	synchronize_rcu();
-
-	unregister_pm_notifier(&(((struct rmnet_port *)port)->dfc_pm_notifier));
 
 	rmnet_work_inited = false;
 	cancel_delayed_work_sync(&rmnet_work->work);

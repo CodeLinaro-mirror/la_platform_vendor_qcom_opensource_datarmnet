@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,6 +28,7 @@ struct qmi_rmnet_ps_ind {
 	struct list_head list;
 };
 
+void qmi_reset_pm_notifier_state(u8 register_for_pm);
 
 #ifdef CONFIG_QTI_QMI_RMNET
 void qmi_rmnet_qmi_exit(void *qmi_pt, void *port);

@@ -1,5 +1,6 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
  * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -876,6 +877,8 @@ static int __init rmnet_init(void)
 
 	rmnet_core_genl_init();
 
+	qmi_reset_pm_notifier_state(1);
+
 	try_module_get(THIS_MODULE);
 	return rc;
 }
@@ -887,6 +890,7 @@ static void __exit rmnet_exit(void)
 	rmnet_ll_exit();
 	rmnet_core_genl_deinit();
 	ipa_unregister_notifier(&rmnet_ipa_notify_cb);
+	qmi_reset_pm_notifier_state(0);
 
 	module_put(THIS_MODULE);
 }

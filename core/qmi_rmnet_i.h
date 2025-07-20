@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -144,6 +145,7 @@ struct qmi_info {
 	bool dl_msg_active;
 	bool ps_ignore_grant;
 	int ps_ext;
+	struct rmnet_port *port;
 };
 
 enum data_ep_type_enum_v01 {

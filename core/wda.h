@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2018,2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 #include <linux/version.h>
 #undef TRACE_SYSTEM
@@ -8,7 +8,11 @@
 
 #undef TRACE_INCLUDE_PATH
 
-#define TRACE_INCLUDE_PATH ../core
+#ifdef CONFIG_ARCH_QCOM
+	#define TRACE_INCLUDE_PATH ../../../../../datarmnet/core
+#else
+	#define TRACE_INCLUDE_PATH ../core
+#endif
 
 #define TRACE_INCLUDE_FILE wda
 

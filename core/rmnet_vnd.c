@@ -118,13 +118,14 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 		if (RMNET_APS_LLC(skb->priority))
 			low_latency = true;
 
+#if IS_ENABLED(CONFIG_XFRM)
 		if ((priv->real_dev->features & NETIF_F_HW_ESP) &&
 		    (priv->real_dev->hw_enc_features & NETIF_F_HW_ESP) &&
 		    (skb->ipa_skb_cb.magic == IPA_IPSEC_SKB_MAGIC)) {
 			ipsec = skb->ipa_skb_cb.sa_dir;
 			priv->stats.ul_ipsec++;
 		}
-
+#endif /* CONFIG_XFRM */
 		if ((low_latency || RMNET_APS_LLB(skb->priority)) &&
 		    skb_is_gso(skb) && !ipsec) {
 			netdev_features_t features;
@@ -738,6 +739,7 @@ static const struct ethtool_ops rmnet_ethtool_ops = {
 	.nway_reset = rmnet_stats_reset,
 };
 
+#if IS_ENABLED(CONFIG_XFRM)
 static bool rmnet_xfrm_is_valid_state(struct xfrm_state *x)
 {
 	struct rmnet_priv *priv = NULL;
@@ -865,7 +867,7 @@ static const struct xfrmdev_ops rmnet_xfrmdev_ops = {
 	.xdo_dev_policy_delete = rmnet_xfrm_policy_delete,
 	.xdo_dev_policy_free = rmnet_xfrm_policy_free,
 };
-
+#endif /* CONFIG_XFRM */
 /* Called by kernel whenever a new rmnet<n> device is created. Sets MTU,
  * flags, ARP type, needed headroom, etc...
  */
@@ -910,6 +912,7 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 	rmnet_dev->hw_features |= NETIF_F_GSO_UDP_L4;
 	rmnet_dev->hw_features |= NETIF_F_ALL_TSO;
 
+#if IS_ENABLED(CONFIG_XFRM)
 	if ((real_dev->features & NETIF_F_HW_ESP) &&
 	    (real_dev->hw_enc_features & NETIF_F_HW_ESP)) {
 		rmnet_dev->xfrmdev_ops = &rmnet_xfrmdev_ops;
@@ -917,7 +920,7 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 		rmnet_dev->features |= NETIF_F_HW_ESP;
 		rmnet_dev->hw_enc_features |= NETIF_F_HW_ESP;
 	}
-
+#endif /* CONFIG_XFRM */
 	priv->real_dev = real_dev;
 
 	rmnet_dev->gso_max_size = 64000;

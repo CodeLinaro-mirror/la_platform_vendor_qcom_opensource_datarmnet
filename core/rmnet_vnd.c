@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.​
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -516,6 +516,18 @@ static const char rmnet_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"Coalescing packets over VEID1",
 	"Coalescing packets over VEID2",
 	"Coalescing packets over VEID3",
+	"Coalescing packets over VEID4",
+	"Coalescing packets over VEID5",
+	"Coalescing packets over VEID6",
+	"Coalescing packets over VEID7",
+	"Coalescing packets over VEID8",
+	"Coalescing packets over VEID9",
+	"Coalescing packets over VEID10",
+	"Coalescing packets over VEID11",
+	"Coalescing packets over VEID12",
+	"Coalescing packets over VEID13",
+	"Coalescing packets over VEID14",
+	"Coalescing packets over VEID15",
 	"Coalescing TCP frames",
 	"Coalescing TCP bytes",
 	"Coalescing UDP frames",

@@ -10,6 +10,9 @@ define_modules("sdxkova.cpe.wkk", "debug")
 define_modules("sdxkova.512", "perf")
 define_modules("sdxkova.512", "debug")
 
+define_modules("sdxkova.cpe.tarang", "perf")
+define_modules("sdxkova.cpe.tarang", "debug")
+
 package(
     default_visibility = [
         "//visibility:public",

@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2014, 2016-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.​
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -26,7 +26,7 @@
 /* Needs to be included after include guards and RMNET_MAX_LOGICAL_EP */
 #include "rmnet_eth_main.h"
 
-#define RMNET_MAX_VEID 4
+#define RMNET_MAX_VEID 16
 
 #define RMNET_SHS_STMP_ALL BIT(0)
 #define RMNET_SHS_NO_PSH BIT(1)

@@ -5,27 +5,9 @@
 #include <linux/version.h>
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM rmnet
-#undef TRACE_INCLUDE_PATH
 
-#if defined(__arch_um__)
-	#define TRACE_INCLUDE_PATH ../../../../datarmnet/core
-#else
-	#if LINUX_VERSION_CODE < KERNEL_VERSION(5,16,0)
-		#ifdef CONFIG_ARCH_SDXNIGHTJAR
-			#define TRACE_INCLUDE_PATH ../../../../../../../datarmnet/core
-		#else
-			#define TRACE_INCLUDE_PATH ../../../../../../../src/datarmnet/core
-		#endif /* CONFIG_ARCH_SDXNIGHTJAR */
-	#elif LINUX_VERSION_CODE < KERNEL_VERSION(6,9,0)
-		#ifdef CONFIG_ARCH_QCOM
-			#define TRACE_INCLUDE_PATH ../../../../../datarmnet/core
-		#else
-			#define TRACE_INCLUDE_PATH ../core
-		#endif
-	#else
-		#define TRACE_INCLUDE_PATH ../../../../vendor/qcom/opensource/datarmnet/core
-	#endif /* endif LINUX_VERSION_CODE < KERNEL_VERSION(5,5,0) */
-#endif /* defined(__arch_um__) */
+#undef TRACE_INCLUDE_PATH
+#define TRACE_INCLUDE_PATH .
 
 #define TRACE_INCLUDE_FILE rmnet_trace
 

@@ -12,6 +12,10 @@ endif
 
 obj-m += rmnet_core.o
 
+CFLAGS_wda_qmi.o := -I$(src)
+CFLAGS_dfc_qmi.o := -I$(src)
+CFLAGS_rmnet_handlers.o := -I$(src)
+
 #core sources
 rmnet_core-y := \
 	rmnet_config.o \

@@ -12,6 +12,10 @@ endif
 M ?= $(shell pwd)
 #obj-m := rmnet_core.o rmnet_ctl.o
 
+CFLAGS_wda_qmi.o := -I$(src)
+CFLAGS_dfc_qmi.o := -I$(src)
+CFLAGS_rmnet_handlers.o := -I$(src)
+
 rmnet_core-y += 	rmnet_config.o \
 			rmnet_descriptor.o \
 			rmnet_genl.o \

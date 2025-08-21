@@ -13,13 +13,9 @@
 #include <linux/version.h>
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM dfc
-#undef TRACE_INCLUDE_PATH
 
-#ifdef CONFIG_ARCH_QCOM
-	#define TRACE_INCLUDE_PATH ../../../../../datarmnet/core
-#else
-	#define TRACE_INCLUDE_PATH ../core
-#endif
+#undef TRACE_INCLUDE_PATH
+#define TRACE_INCLUDE_PATH .
 
 #define TRACE_INCLUDE_FILE dfc
 

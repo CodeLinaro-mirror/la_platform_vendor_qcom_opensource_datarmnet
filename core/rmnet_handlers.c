@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -398,6 +398,7 @@ free_skb:
 	kfree_skb(skb);
 }
 
+#if IS_ENABLED(CONFIG_XFRM)
 static void rmnet_map_ipsec_record_error_type(struct sk_buff *skb,
 					      struct rmnet_priv *priv)
 {
@@ -584,7 +585,7 @@ static void rmnet_ipsec_ingress_handler(struct sk_buff *skb,
 		skb = skb_frag;
 	}
 }
-
+#endif /* CONFIG_XFRM */
 int (*rmnet_perf_deag_entry)(struct sk_buff *skb,
 			     struct rmnet_port *port) __rcu __read_mostly;
 EXPORT_SYMBOL(rmnet_perf_deag_entry);
@@ -618,6 +619,7 @@ rmnet_map_ingress_handler(struct sk_buff *skb,
 		return;
 	}
 
+#if IS_ENABLED(CONFIG_XFRM)
 	if ((skb->dev->features & NETIF_F_HW_ESP) &&
 	    (skb->dev->hw_enc_features & NETIF_F_HW_ESP) &&
 	    (skb_rx_queue_recorded(skb) &&
@@ -626,7 +628,7 @@ rmnet_map_ingress_handler(struct sk_buff *skb,
 		rmnet_ipsec_ingress_handler(skb, port);
 		return;
 	}
-
+#endif /* CONFIG_XFRM */
 	if (port->data_format & (RMNET_FLAGS_INGRESS_COALESCE |
 				 RMNET_PRIV_FLAGS_INGRESS_MAP_CKSUMV5)) {
 		if (skb_is_nonlinear(skb)) {
@@ -875,6 +877,7 @@ direct_xmit:
 		}
 		return;
 	}
+#if IS_ENABLED(CONFIG_XFRM)
 
 	if (ipsec == XFRM_DEV_OFFLOAD_OUT) {
 		skb_set_queue_mapping(skb, IPA_RMNET_TX_QUEUE_IPSEC_ENCAP);
@@ -883,7 +886,7 @@ direct_xmit:
 		skb_set_queue_mapping(skb, IPA_RMNET_TX_QUEUE_IPSEC_DECAP);
 		priv->stats.ul2_ok++;
 	}
-
+#endif /* CONFIG_XFRM */
 	dev_queue_xmit(skb);
 
 	return;

@@ -13,6 +13,9 @@ define_modules("vienna", "perf")
 define_modules("lahaina", "consolidate")
 define_modules("lahaina", "perf")
 
+define_modules("bengal", "consolidate")
+define_modules("bengal", "perf")
+
 package(
     default_visibility = [
         "//visibility:public",

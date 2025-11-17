@@ -1,13 +1,6 @@
-/* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: GPL-2.0-only
  */
 
 #ifndef __RMNET_MODULE_H__
@@ -29,6 +22,7 @@ enum {
 	RMNET_MODULE_HOOK_APS_POST_QUEUE,
 	RMNET_MODULE_HOOK_WLAN_FLOW_MATCH,
 	RMNET_MODULE_HOOK_ETH_RX_HANDLER,
+	RMNET_MODULE_HOOK_WLAN_INGRESS_RX_HANDLER,
 	__RMNET_MODULE_NUM_HOOKS,
 };
 

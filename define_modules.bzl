@@ -8,29 +8,29 @@ def define_modules(target, variant):
     #The below will take care of the defconfig
     #include_defconfig = ":{}_defconfig".format(variant)
     deps_core = select({
-	"//build/kernel/kleaf:socrepo_true": [
+	"//build/qcom_build_extensions:qtisocrepo_true": [
 		"//soc-repo:all_headers",
 		"//soc-repo:{}/drivers/soc/qcom/qmi_helpers".format(kernel_build_variant),
 	],
-	"//build/kernel/kleaf:socrepo_false": [
+	"//build/qcom_build_extensions:qtisocrepo_false": [
 		"//msm-kernel:all_headers",
 	],
     })
 
     deps_ctl = select({
-	"//build/kernel/kleaf:socrepo_true": [
+	"//build/qcom_build_extensions:qtisocrepo_true": [
 		"//soc-repo:all_headers",
 		"//soc-repo:{}/drivers/soc/qcom/qmi_helpers".format(kernel_build_variant),
 		"//soc-repo:{}/kernel/trace/qcom_ipc_logging".format(kernel_build_variant),
 	],
-	"//build/kernel/kleaf:socrepo_false": [
+	"//build/qcom_build_extensions:qtisocrepo_false": [
 		"//msm-kernel:all_headers",
 	],
     })
 
     kernel_build = select({
-	"//build/kernel/kleaf:socrepo_true": "//soc-repo:{}_base_kernel".format(kernel_build_variant),
-	"//build/kernel/kleaf:socrepo_false": "//msm-kernel:{}".format(kernel_build_variant),
+	"//build/qcom_build_extensions:qtisocrepo_true": "//soc-repo:{}_base_kernel".format(kernel_build_variant),
+	"//build/qcom_build_extensions:qtisocrepo_false": "//msm-kernel:{}".format(kernel_build_variant),
     })
 
     ddk_module(
@@ -62,6 +62,11 @@ def define_modules(target, variant):
                 True: [
                     "core/rmnet_ctl_client.c",
                 ],
+            },
+            "CONFIG_ARCH_BENGAL": {
+                 True: [
+                     "core/rmnet_ctl_client.c",
+                 ],
             },
         },
         kernel_build = kernel_build,
@@ -103,7 +108,7 @@ def define_modules(target, variant):
             "//vendor/qcom/opensource/dataipa:{}_ipam".format(kernel_build_variant),
             "//vendor/qcom/opensource/datarmnet-ext/mem:{}_rmnet_mem".format(kernel_build_variant),
             "//vendor/qcom/opensource/dataipa:include_headers",
-            "//vendor/qcom/opensource/datarmnet-ext/mem:rmnet_mem_headers",
+            "//vendor/qcom/opensource/datarmnet-ext/mem:rmnet_mem_uapi_headers",
         ],
     )
 

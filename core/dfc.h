@@ -1,5 +1,5 @@
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -15,7 +15,11 @@
 #define TRACE_SYSTEM dfc
 #undef TRACE_INCLUDE_PATH
 
-#define TRACE_INCLUDE_PATH ../core
+#ifdef CONFIG_ARCH_KERA
+	#define TRACE_INCLUDE_PATH ../../datarmnet/core
+#else
+	#define TRACE_INCLUDE_PATH ../core
+#endif
 
 #define TRACE_INCLUDE_FILE dfc
 

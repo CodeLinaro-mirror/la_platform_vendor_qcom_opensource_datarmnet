@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -117,13 +117,14 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 		if (RMNET_APS_LLC(skb->priority))
 			low_latency = true;
 
+#if IS_ENABLED(CONFIG_XFRM_OFFLOAD)
 		if ((priv->real_dev->features & NETIF_F_HW_ESP) &&
 		    (priv->real_dev->hw_enc_features & NETIF_F_HW_ESP) &&
 		    (IPA_IPSEC_SKB_CB(skb)->magic == IPA_IPSEC_SKB_MAGIC)) {
 			ipsec = IPA_IPSEC_SKB_CB(skb)->sa_dir;
 			priv->stats.ul_ipsec++;
 		}
-
+#endif /* CONFIG_XFRM_OFFLOAD */
 		if ((low_latency || RMNET_APS_LLB(skb->priority)) &&
 		    skb_is_gso(skb) && !ipsec) {
 			netdev_features_t features;
@@ -723,8 +724,7 @@ static const struct ethtool_ops rmnet_ethtool_ops = {
 	.nway_reset = rmnet_stats_reset,
 };
 
-#ifdef CONFIG_XFRM
-
+#if IS_ENABLED(CONFIG_XFRM_OFFLOAD)
 static bool rmnet_xfrm_is_valid_state(struct xfrm_state *x)
 {
 	struct rmnet_priv *priv = NULL;
@@ -853,8 +853,7 @@ static const struct xfrmdev_ops rmnet_xfrmdev_ops = {
 	.xdo_dev_policy_free = rmnet_xfrm_policy_free,
 };
 
-#endif //#ifdef CONFIG_XFRM
-
+#endif /* CONFIG_XFRM_OFFLOAD */
 /* Called by kernel whenever a new rmnet<n> device is created. Sets MTU,
  * flags, ARP type, needed headroom, etc...
  */
@@ -898,7 +897,8 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 	rmnet_dev->hw_features |= NETIF_F_GRO_HW;
 	rmnet_dev->hw_features |= NETIF_F_GSO_UDP_L4;
 	rmnet_dev->hw_features |= NETIF_F_ALL_TSO;
-#ifdef CONFIG_XFRM
+
+#if IS_ENABLED(CONFIG_XFRM_OFFLOAD)
 
 	if ((real_dev->features & NETIF_F_HW_ESP) &&
 	    (real_dev->hw_enc_features & NETIF_F_HW_ESP)) {
@@ -907,7 +907,7 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 		rmnet_dev->features |= NETIF_F_HW_ESP;
 		rmnet_dev->hw_enc_features |= NETIF_F_HW_ESP;
 	}
-#endif //#ifdef CONFIG_XFRM
+#endif /* CONFIG_XFRM_OFFLOAD */
 
 	priv->real_dev = real_dev;
 

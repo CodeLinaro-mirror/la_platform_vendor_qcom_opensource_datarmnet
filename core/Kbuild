@@ -10,6 +10,10 @@ ifeq (y, $(filter y, $(CONFIG_ARCH_SDXLEMUR) $(CONFIG_ARCH_SDXBAAGHA)))
 ccflags-y       += -Wframe-larger-than=2048
 endif
 
+ifeq ($(CONFIG_ARCH_KERA), y)
+ccflags-y       += $(LE_EXTRA_CFLAGS)
+endif
+
 obj-m += rmnet_core.o
 
 #core sources

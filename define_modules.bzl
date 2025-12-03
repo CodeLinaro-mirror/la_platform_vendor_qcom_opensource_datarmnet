@@ -108,7 +108,7 @@ def define_modules(target, variant):
             "//vendor/qcom/opensource/dataipa:{}_ipam".format(kernel_build_variant),
             "//vendor/qcom/opensource/datarmnet-ext/mem:{}_rmnet_mem".format(kernel_build_variant),
             "//vendor/qcom/opensource/dataipa:include_headers",
-            "//vendor/qcom/opensource/datarmnet-ext/mem:rmnet_mem_headers",
+            "//vendor/qcom/opensource/datarmnet-ext/mem:rmnet_mem_uapi_headers",
         ],
     )
 

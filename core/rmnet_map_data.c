@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -385,9 +385,11 @@ struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb,
 			return NULL;
 #if (KERNEL_VERSION(6, 5, 0) > LINUX_VERSION_CODE)
 		skb_append_pagefrags(skbn, page, frag0->bv_offset, packet_len);
+#elif (KERNEL_VERSION(6, 9, 0) > LINUX_VERSION_CODE)
+		skb_append_pagefrags(skbn, page, frag0->bv_offset, packet_len,
+				MAX_SKB_FRAGS);
 #else
-
-		skb_append_pagefrags(skbn, page, frag0->bv_offset,
+		skb_append_pagefrags(skbn, page, frag0->offset,
 				     packet_len,MAX_SKB_FRAGS);
 #endif
 
@@ -685,9 +687,15 @@ static void rmnet_map_nonlinear_copy(struct sk_buff *coal_skb,
 				     coal_meta->trans_len +
 				     coal_meta->data_offset,
 				     copy_len);
-#else
+#elif (KERNEL_VERSION(6, 9, 0) > LINUX_VERSION_CODE)
 		skb_append_pagefrags(dest, page,
 				     frag0->bv_offset + coal_meta->ip_len +
+				     coal_meta->trans_len +
+				     coal_meta->data_offset,
+				     copy_len, MAX_SKB_FRAGS);
+#else
+		skb_append_pagefrags(dest, page,
+				     frag0->offset + coal_meta->ip_len +
 				     coal_meta->trans_len +
 				     coal_meta->data_offset,
 				     copy_len,MAX_SKB_FRAGS);
@@ -1594,9 +1602,14 @@ void rmnet_map_tx_aggregate_init(struct rmnet_port *port)
 
 		spin_lock_init(&state->agg_lock);
 		INIT_LIST_HEAD(&state->agg_list);
+#if (KERNEL_VERSION(6, 15, 0) > LINUX_VERSION_CODE)
 		hrtimer_init(&state->hrtimer, CLOCK_MONOTONIC,
 			     HRTIMER_MODE_REL);
 		state->hrtimer.function = rmnet_map_flush_tx_packet_queue;
+#else
+		hrtimer_setup(&state->hrtimer, rmnet_map_flush_tx_packet_queue, CLOCK_MONOTONIC,
+			      HRTIMER_MODE_REL);
+#endif
 		INIT_WORK(&state->agg_wq, rmnet_map_flush_tx_packet_work);
 		state->stats = &port->stats.agg;
 

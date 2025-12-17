@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -289,7 +289,11 @@ void qmi_rmnet_watchdog_remove(struct rmnet_bearer_map *bearer)
 	if (!bearer->watchdog_started)
 		return;
 
+#if (KERNEL_VERSION(6, 15, 0) > LINUX_VERSION_CODE)
 	del_timer(&bearer->watchdog);
+#else
+	timer_delete(&bearer->watchdog);
+#endif
 	bearer->watchdog_started = false;
 
 	trace_dfc_watchdog(bearer->qos->mux_id, bearer->bearer_id, 0);
@@ -303,9 +307,17 @@ static void qmi_rmnet_bearer_clean(struct qos_info *qos)
 {
 	if (qos->removed_bearer) {
 		qos->removed_bearer->watchdog_quit = true;
+#if (KERNEL_VERSION(6, 15, 0) > LINUX_VERSION_CODE)
 		del_timer_sync(&qos->removed_bearer->watchdog);
+#else
+		timer_delete_sync(&qos->removed_bearer->watchdog);
+#endif
 		qos->removed_bearer->ch_switch.timer_quit = true;
+#if (KERNEL_VERSION(6, 15, 0) > LINUX_VERSION_CODE)
 		del_timer_sync(&qos->removed_bearer->ch_switch.guard_timer);
+#else
+		timer_delete_sync(&qos->removed_bearer->ch_switch.guard_timer);
+#endif
 		kfree(qos->removed_bearer);
 		qos->removed_bearer = NULL;
 	}
@@ -1110,9 +1122,17 @@ void qmi_rmnet_qos_exit_pre(void *qos)
 
 	list_for_each_entry(bearer, &qosi->bearer_head, list) {
 		bearer->watchdog_quit = true;
+#if (KERNEL_VERSION(6, 15, 0) > LINUX_VERSION_CODE)
 		del_timer_sync(&bearer->watchdog);
+#else
+		timer_delete_sync(&bearer->watchdog);
+#endif
 		bearer->ch_switch.timer_quit = true;
+#if (KERNEL_VERSION(6, 15, 0) > LINUX_VERSION_CODE)
 		del_timer_sync(&bearer->ch_switch.guard_timer);
+#else
+		timer_delete_sync(&bearer->ch_switch.guard_timer);
+#endif
 	}
 
 	list_add(&qosi->list, &qos_cleanup_list);

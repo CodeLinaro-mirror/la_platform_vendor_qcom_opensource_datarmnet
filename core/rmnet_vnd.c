@@ -784,28 +784,49 @@ static const struct xfrmdev_ops *rmnet_real_dev_xfrmdev_ops(struct net_device *d
 	return priv->real_dev->xfrmdev_ops;
 }
 
+#if (KERNEL_VERSION(6, 15, 0) > LINUX_VERSION_CODE)
 static int rmnet_xfrm_add_state(struct xfrm_state *x, struct netlink_ext_ack *extack)
+#else
+static int rmnet_xfrm_add_state(struct net_device *dev, struct xfrm_state *x, struct netlink_ext_ack *extack)
+#endif
 {
 	if (!rmnet_xfrm_is_valid_state(x))
 		return -EINVAL;
-
+#if (KERNEL_VERSION(6, 15, 0) > LINUX_VERSION_CODE)
 	return rmnet_real_dev_xfrmdev_ops(x->xso.dev)->xdo_dev_state_add(x, extack);
+#else
+	return rmnet_real_dev_xfrmdev_ops(dev)->xdo_dev_state_add(dev, x, extack);
+#endif
 }
-
+#if (KERNEL_VERSION(6, 15, 0) > LINUX_VERSION_CODE)
 static void rmnet_xfrm_del_state(struct xfrm_state *x)
+#else
+static void rmnet_xfrm_del_state(struct net_device *dev, struct xfrm_state *x)
+#endif
 {
 	if (!rmnet_xfrm_is_valid_state(x))
 		return;
-
+#if (KERNEL_VERSION(6, 15, 0) > LINUX_VERSION_CODE)
 	rmnet_real_dev_xfrmdev_ops(x->xso.dev)->xdo_dev_state_delete(x);
+#else
+	rmnet_real_dev_xfrmdev_ops(dev)->xdo_dev_state_delete(dev, x);
+#endif
 }
 
+#if (KERNEL_VERSION(6, 15, 0) > LINUX_VERSION_CODE)
 static void rmnet_xfrm_free_state(struct xfrm_state *x)
+#else
+static void rmnet_xfrm_free_state(struct net_device *dev, struct xfrm_state *x)
+#endif
 {
 	if (!rmnet_xfrm_is_valid_state(x))
 		return;
 
+#if (KERNEL_VERSION(6, 15, 0) > LINUX_VERSION_CODE)
 	rmnet_real_dev_xfrmdev_ops(x->xso.dev)->xdo_dev_state_free(x);
+#else
+	rmnet_real_dev_xfrmdev_ops(dev)->xdo_dev_state_free(dev, x);
+#endif
 }
 
 static bool rmnet_xfrm_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
@@ -824,12 +845,19 @@ static void rmnet_xfrm_state_advance_esn(struct xfrm_state *x)
 	rmnet_real_dev_xfrmdev_ops(x->xso.dev)->xdo_dev_state_advance_esn(x);
 }
 
+#if (KERNEL_VERSION(6, 8, 0) > LINUX_VERSION_CODE)
 static void rmnet_xfrm_state_update_curlft(struct xfrm_state *x)
+#else
+static void rmnet_xfrm_state_update_stats(struct xfrm_state *x)
+#endif
 {
 	if (!rmnet_xfrm_is_valid_state(x))
 		return;
-
+#if (KERNEL_VERSION(6, 8, 0) > LINUX_VERSION_CODE)
 	rmnet_real_dev_xfrmdev_ops(x->xso.dev)->xdo_dev_state_update_curlft(x);
+#else
+	rmnet_real_dev_xfrmdev_ops(x->xso.dev)->xdo_dev_state_update_stats(x);
+#endif
 }
 
 static int rmnet_xfrm_policy_add(struct xfrm_policy *x, struct netlink_ext_ack *extack)
@@ -862,7 +890,11 @@ static const struct xfrmdev_ops rmnet_xfrmdev_ops = {
 	.xdo_dev_state_free = rmnet_xfrm_free_state,
 	.xdo_dev_offload_ok = rmnet_xfrm_offload_ok,
 	.xdo_dev_state_advance_esn = rmnet_xfrm_state_advance_esn,
+#if (KERNEL_VERSION(6, 8, 0) > LINUX_VERSION_CODE)
 	.xdo_dev_state_update_curlft = rmnet_xfrm_state_update_curlft,
+#else
+	.xdo_dev_state_update_stats = rmnet_xfrm_state_update_stats,
+#endif
 	.xdo_dev_policy_add = rmnet_xfrm_policy_add,
 	.xdo_dev_policy_delete = rmnet_xfrm_policy_delete,
 	.xdo_dev_policy_free = rmnet_xfrm_policy_free,

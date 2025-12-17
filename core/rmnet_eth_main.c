@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2024, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -561,10 +561,21 @@ static int rmnet_eth_unregister_real_device(struct net_device *real_dev,
 	return 0;
 }
 
+#if (KERNEL_VERSION(6, 15, 0) > LINUX_VERSION_CODE)
 static int rmnet_eth_newlink(struct net *src_net, struct net_device *dev,
-                             struct nlattr *tb[], struct nlattr *data[],
+			      struct nlattr *tb[], struct nlattr *data[],
 			     struct netlink_ext_ack *extack)
+#else
+static int rmnet_eth_newlink(struct net_device *dev,
+			     struct rtnl_newlink_params *params,
+			     struct netlink_ext_ack *extack)
+#endif
 {
+#if (KERNEL_VERSION(6, 15, 0) <= LINUX_VERSION_CODE)
+	struct net *link_net = rtnl_newlink_link_net(params);
+	struct nlattr **data = params->data;
+	struct nlattr **tb = params->tb;
+#endif
 	struct net_device *real_dev;
 	int mode = RMNET_EPMODE_VND;
 	struct rmnet_endpoint *ep;
@@ -572,7 +583,11 @@ static int rmnet_eth_newlink(struct net *src_net, struct net_device *dev,
 	int err = 0;
 	u16 mux_id;
 
+#if (KERNEL_VERSION(6, 15, 0) > LINUX_VERSION_CODE)
 	real_dev = __dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
+#else
+	real_dev = __dev_get_by_index(link_net, nla_get_u32(tb[IFLA_LINK]));
+#endif
 	if (!real_dev || !dev)
 		return -ENODEV;
 

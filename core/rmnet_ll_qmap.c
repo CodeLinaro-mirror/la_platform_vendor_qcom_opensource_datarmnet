@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -208,7 +208,11 @@ static void ll_switch_complete(struct rmnet_bearer_map *bearer, u8 status)
 	} else {
 		/* Success or permanent failure */
 		bearer->ch_switch.timer_quit = true;
+#if (KERNEL_VERSION(6, 15, 0) > LINUX_VERSION_CODE)
 		del_timer(&bearer->ch_switch.guard_timer);
+#else
+		timer_delete(&bearer->ch_switch.guard_timer);
+#endif
 		bearer->ch_switch.state = CH_SWITCH_NONE;
 		bearer->ch_switch.retry_left = 0;
 		ll_send_nl_ack(bearer);

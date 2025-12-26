@@ -13,6 +13,9 @@ define_modules("sdxkova.512", "debug")
 define_modules("sdxkova.cpe.tarang", "perf")
 define_modules("sdxkova.cpe.tarang", "debug")
 
+define_modules("taycan", "perf")
+define_modules("taycan", "debug")
+
 package(
     default_visibility = [
         "//visibility:public",

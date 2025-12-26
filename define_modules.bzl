@@ -10,6 +10,11 @@ def define_modules(target, variant):
 
     mod_list = []
 
+    ipa_path = "target-aarch64_cortex-a53_musl/linux-sdx85/dataipa-1.0"
+    # replace the include path of dataipa for qmb415
+    if target == "taycan":
+        ipa_path = "target-aarch64_kryo300_musl/linux-qmb415/dataipa-1.0"
+
     ddk_module(
         name = "{}-defconfig_rmnet_core".format(kernel_build_variant),
         out = "rmnet_core.ko",
@@ -35,7 +40,7 @@ def define_modules(target, variant):
         deps = [
             ":rmnet_core_headers",
             "//msm-kernel:all_headers",
-            "//build_dir/target-aarch64_cortex-a53_musl/linux-sdx85/dataipa-1.0:include_headers",
+            "//build_dir/{}:include_headers".format(ipa_path),
         ],
     )
     mod_list.append("{}-defconfig_rmnet_core".format(kernel_build_variant))
@@ -51,7 +56,7 @@ def define_modules(target, variant):
             ":rmnet_core_headers",
             ":{}-defconfig_rmnet_core".format(kernel_build_variant),
             "//msm-kernel:all_headers",
-            "//build_dir/target-aarch64_cortex-a53_musl/linux-sdx85/dataipa-1.0:include_headers",
+            "//build_dir/{}:include_headers".format(ipa_path),
         ],
     )
     mod_list.append("{}-defconfig_rmnet_eth".format(kernel_build_variant))

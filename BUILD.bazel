@@ -19,6 +19,9 @@ define_modules("lahaina", "perf")
 define_modules("bengal", "consolidate")
 define_modules("bengal", "perf")
 
+define_modules("chora", "consolidate")
+define_modules("chora", "perf")
+
 package(
     default_visibility = [
         "//visibility:public",

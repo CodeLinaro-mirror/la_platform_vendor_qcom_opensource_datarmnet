@@ -97,47 +97,87 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 	u8 ipsec = 0;
 
 	priv = netdev_priv(dev);
-	if (priv->real_dev) {
-		ip_type = (ip_hdr(skb)->version == 4) ?
-					AF_INET : AF_INET6;
-		mark = skb->mark;
-		len = skb->len;
-		trace_rmnet_xmit_skb(skb);
-		rmnet_perf_tether_egress = rcu_dereference(rmnet_perf_tether_egress_hook);
-		if (rmnet_perf_tether_egress) {
-			rmnet_perf_tether_egress(skb);
-		}
+	if (!priv->real_dev) {
+		this_cpu_inc(priv->pcpu_stats->stats.tx_drops);
+		goto drop_packet;
+	}
 
-		qmi_rmnet_get_flow_state(dev, skb, &need_to_drop, &low_latency);
-		if (unlikely(need_to_drop)) {
-			this_cpu_inc(priv->pcpu_stats->stats.tx_drops);
-			kfree_skb(skb);
-			return NETDEV_TX_OK;
-		}
+	ip_type = (ip_hdr(skb)->version == 4) ? AF_INET : AF_INET6;
+	mark = skb->mark;
+	len = skb->len;
+	trace_rmnet_xmit_skb(skb);
 
-		if (RMNET_APS_LLC(skb->priority))
-			low_latency = true;
+	rmnet_perf_tether_egress = rcu_dereference(rmnet_perf_tether_egress_hook);
+	if (rmnet_perf_tether_egress)
+		rmnet_perf_tether_egress(skb);
 
-		if ((priv->real_dev->features & NETIF_F_HW_ESP) &&
-		    (priv->real_dev->hw_enc_features & NETIF_F_HW_ESP) &&
-		    (skb->ipa_skb_cb.magic == IPA_IPSEC_SKB_MAGIC)) {
-			ipsec = skb->ipa_skb_cb.sa_dir;
-			priv->stats.ul_ipsec++;
-		}
+	qmi_rmnet_get_flow_state(dev, skb, &need_to_drop, &low_latency);
+	if (unlikely(need_to_drop)) {
+		this_cpu_inc(priv->pcpu_stats->stats.tx_drops);
+		goto drop_packet;
+	}
 
-		if ((low_latency || RMNET_APS_LLB(skb->priority)) &&
-		    skb_is_gso(skb) && !ipsec) {
-			netdev_features_t features;
-			struct sk_buff *segs, *tmp;
+	if (RMNET_APS_LLC(skb->priority))
+		low_latency = true;
 
-			features = dev->features & ~NETIF_F_GSO_MASK;
-			segs = skb_gso_segment(skb, features);
+	if ((priv->real_dev->features & NETIF_F_HW_ESP) &&
+	    (priv->real_dev->hw_enc_features & NETIF_F_HW_ESP) &&
+	    (skb->ipa_skb_cb.magic == IPA_IPSEC_SKB_MAGIC)) {
+		ipsec = skb->ipa_skb_cb.sa_dir;
+		priv->stats.ul_ipsec++;
+	}
+
+	if (skb_is_gso(skb)) {
+		struct sk_buff *segs, *tmp;
+
+		if (!low_latency && !ipsec && !RMNET_APS_LLB(skb->priority)) {
+			u64 gso_limit = priv->real_dev->gso_max_size ? : 1;
+			u16 orig_gso_size = skb_shinfo(skb)->gso_size;
+			unsigned int orig_gso_type = skb_shinfo(skb)->gso_type;
+
+			if (skb->len < gso_limit || gso_limit > 65535) {
+				priv->stats.tso_segment_skip++;
+				goto egress;
+			}
+
+			do_div(gso_limit, skb_shinfo(skb)->gso_size);
+			skb_shinfo(skb)->gso_size =
+				gso_limit * skb_shinfo(skb)->gso_size;
+
+			netdev_features_t features = NETIF_F_SG;
+
+			features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+			segs = __skb_gso_segment(skb, features, false);
+			if (IS_ERR_OR_NULL(segs)) {
+				skb_shinfo(skb)->gso_size = orig_gso_size;
+				skb_shinfo(skb)->gso_type = orig_gso_type;
+				priv->stats.tso_segment_fail++;
+				goto egress;
+			}
+
+			consume_skb(skb);
+			for (skb = segs; skb; skb = tmp) {
+				tmp = skb->next;
+				skb->dev = dev;
+				skb_shinfo(skb)->gso_size = orig_gso_size;
+				skb_shinfo(skb)->gso_type = orig_gso_type;
+				priv->stats.tso_segment_success++;
+				skb_mark_not_on_list(skb);
+				rmnet_egress_handler(skb, low_latency, ipsec);
+			}
+		} else {
+			netdev_features_t ipsec_features = NETIF_F_SG;
+
+			ipsec_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+			if (ipsec)
+				ipsec_features |= NETIF_F_HW_ESP;
+
+			segs = skb_gso_segment(skb, ipsec_features);
 			if (IS_ERR_OR_NULL(segs)) {
 				this_cpu_add(priv->pcpu_stats->stats.tx_drops,
 					     skb_shinfo(skb)->gso_segs);
 				priv->stats.ll_tso_errs++;
-				kfree_skb(skb);
-				return NETDEV_TX_OK;
+				goto drop_packet;
 			}
 
 			consume_skb(skb);
@@ -148,56 +188,23 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 				skb_mark_not_on_list(skb);
 				rmnet_egress_handler(skb, low_latency, ipsec);
 			}
-		} else if (!low_latency && skb_is_gso(skb) && !ipsec) {
-			u64 gso_limit = priv->real_dev->gso_max_size ? : 1;
-			u16 gso_goal = 0;
-			netdev_features_t features = NETIF_F_SG;
-			u16 orig_gso_size = skb_shinfo(skb)->gso_size;
-			unsigned int orig_gso_type = skb_shinfo(skb)->gso_type;
-			struct sk_buff *segs, *tmp;
-
-			features |=  NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-
-			if (skb->len < gso_limit || gso_limit > 65535) {
-				priv->stats.tso_segment_skip++;
-				rmnet_egress_handler(skb, low_latency, ipsec);
-			} else {
-				do_div(gso_limit, skb_shinfo(skb)->gso_size);
-				gso_goal = gso_limit * skb_shinfo(skb)->gso_size;
-				skb_shinfo(skb)->gso_size = gso_goal;
-
-				segs = __skb_gso_segment(skb, features, false);
-				if (IS_ERR_OR_NULL(segs)) {
-					skb_shinfo(skb)->gso_size = orig_gso_size;
-					skb_shinfo(skb)->gso_type = orig_gso_type;
-
-					priv->stats.tso_segment_fail++;
-					rmnet_egress_handler(skb, low_latency, ipsec);
-				} else {
-					consume_skb(skb);
-
-					for (skb = segs; skb; skb = tmp) {
-						tmp = skb->next;
-						skb->dev = dev;
-
-						skb_shinfo(skb)->gso_size = orig_gso_size;
-						skb_shinfo(skb)->gso_type = orig_gso_type;
-
-						priv->stats.tso_segment_success++;
-						skb_mark_not_on_list(skb);
-						rmnet_egress_handler(skb, low_latency, ipsec);
-					}
-				}
-			}
-		} else {
-			rmnet_egress_handler(skb, low_latency, ipsec);
 		}
-		qmi_rmnet_burst_fc_check(dev, ip_type, mark, len);
-		qmi_rmnet_work_maybe_restart(rmnet_get_rmnet_port(dev));
 	} else {
-		this_cpu_inc(priv->pcpu_stats->stats.tx_drops);
-		kfree_skb(skb);
+		goto egress;
 	}
+
+	goto exit_qmi;
+
+egress:
+	rmnet_egress_handler(skb, low_latency, ipsec);
+
+exit_qmi:
+	qmi_rmnet_burst_fc_check(dev, ip_type, mark, len);
+	qmi_rmnet_work_maybe_restart(rmnet_get_rmnet_port(dev));
+	return NETDEV_TX_OK;
+
+drop_packet:
+	kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -923,6 +930,7 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 	priv->real_dev = real_dev;
 
 	rmnet_dev->gso_max_size = 64000;
+	rmnet_dev->gso_ipv4_max_size = 64000;
 
 	rc = register_netdevice(rmnet_dev);
 	if (!rc) {

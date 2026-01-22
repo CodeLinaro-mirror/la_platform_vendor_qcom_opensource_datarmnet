@@ -21,7 +21,7 @@ config RMNET_CTL
 config RMNET_LA_PLATFORM
 	default y
 	bool "RMNET platform support"
-	depends on ARCH_SUN || ARCH_CANOE || ARCH_VIENNA || ARCH_YUPIK || ARCH_BENGAL
+	depends on ARCH_SUN || ARCH_CANOE || ARCH_VIENNA || ARCH_MONACO || ARCH_YUPIK || ARCH_BENGAL || ARCH_CHORA || ARCH_MALABAR
 	help
 	  Enable the functionality gated by the RMNET_LA_PLATFORM configuration
 	  in rmnet driver.

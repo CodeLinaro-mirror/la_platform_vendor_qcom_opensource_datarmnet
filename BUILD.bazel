@@ -22,6 +22,9 @@ define_modules("bengal", "perf")
 define_modules("chora", "consolidate")
 define_modules("chora", "perf")
 
+define_modules("malabar", "consolidate")
+define_modules("malabar", "perf")
+
 package(
     default_visibility = [
         "//visibility:public",

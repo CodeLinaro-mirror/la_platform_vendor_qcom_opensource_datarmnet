@@ -10,8 +10,20 @@ define_modules("canoe", "perf")
 define_modules("vienna", "consolidate")
 define_modules("vienna", "perf")
 
+define_modules("monaco", "consolidate")
+define_modules("monaco", "perf")
+
 define_modules("lahaina", "consolidate")
 define_modules("lahaina", "perf")
+
+define_modules("bengal", "consolidate")
+define_modules("bengal", "perf")
+
+define_modules("chora", "consolidate")
+define_modules("chora", "perf")
+
+define_modules("malabar", "consolidate")
+define_modules("malabar", "perf")
 
 package(
     default_visibility = [

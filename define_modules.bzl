@@ -58,10 +58,30 @@ def define_modules(target, variant):
                     "core/rmnet_ctl_client.c",
                 ],
             },
+            "CONFIG_ARCH_MONACO": {
+                True: [
+                    "core/rmnet_ctl_client.c",
+                ],
+            },
             "CONFIG_ARCH_YUPIK": {
                 True: [
                     "core/rmnet_ctl_client.c",
                 ],
+            },
+            "CONFIG_ARCH_BENGAL": {
+                 True: [
+                     "core/rmnet_ctl_client.c",
+                 ],
+            },
+            "CONFIG_ARCH_CHORA": {
+                 True: [
+                     "core/rmnet_ctl_client.c",
+                 ],
+            },
+            "CONFIG_ARCH_MALABAR": {
+                 True: [
+                     "core/rmnet_ctl_client.c",
+                 ],
             },
         },
         kernel_build = kernel_build,
@@ -103,7 +123,7 @@ def define_modules(target, variant):
             "//vendor/qcom/opensource/dataipa:{}_ipam".format(kernel_build_variant),
             "//vendor/qcom/opensource/datarmnet-ext/mem:{}_rmnet_mem".format(kernel_build_variant),
             "//vendor/qcom/opensource/dataipa:include_headers",
-            "//vendor/qcom/opensource/datarmnet-ext/mem:rmnet_mem_headers",
+            "//vendor/qcom/opensource/datarmnet-ext/mem:rmnet_mem_uapi_headers",
         ],
     )
 

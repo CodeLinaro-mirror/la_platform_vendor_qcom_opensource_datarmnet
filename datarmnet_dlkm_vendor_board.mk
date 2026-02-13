@@ -16,6 +16,8 @@ ifeq ($(TARGET_DATARMNET_ENABLE), true)
 	DATA_DLKM_BOARD_PLATFORMS_LIST += monaco
         DATA_DLKM_BOARD_PLATFORMS_LIST += lahaina
 	DATA_DLKM_BOARD_PLATFORMS_LIST += bengal
+	DATA_DLKM_BOARD_PLATFORMS_LIST += chora
+	DATA_DLKM_BOARD_PLATFORMS_LIST += malabar
 
 	ifneq ($(TARGET_BOARD_AUTO),true)
 		ifneq (,$(call is-board-platform-in-list2,$(DATA_DLKM_BOARD_PLATFORMS_LIST)))

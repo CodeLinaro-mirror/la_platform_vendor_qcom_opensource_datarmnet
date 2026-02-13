@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -706,6 +706,10 @@ int rmnet_add_bridge(struct net_device *rmnet_dev,
 
 	port = rmnet_get_port(real_dev);
 
+	/* Check if port is valid before accessing its members */
+	if (!port)
+		return -ENODEV;
+
 	/* If there is more than one rmnet dev attached, its probably being
 	 * used for muxing. Skip the briding in that case
 	 */
@@ -720,6 +724,11 @@ int rmnet_add_bridge(struct net_device *rmnet_dev,
 		return -EBUSY;
 
 	slave_port = rmnet_get_port(slave_dev);
+
+	/* Check if slave_port is valid before dereferencing */
+	if (!slave_port)
+		return -ENODEV;
+
 	slave_port->rmnet_mode = RMNET_EPMODE_BRIDGE;
 	slave_port->bridge_ep = real_dev;
 
@@ -738,10 +747,19 @@ int rmnet_del_bridge(struct net_device *rmnet_dev,
 	struct rmnet_port *port, *slave_port;
 
 	port = rmnet_get_port(real_dev);
+	/* Check if port is valid before accessing its members */
+	if (!port)
+		return -ENODEV;
+
 	port->rmnet_mode = RMNET_EPMODE_VND;
 	port->bridge_ep = NULL;
 
 	slave_port = rmnet_get_port(slave_dev);
+
+	/* Check if slave_port is valid before dereferencing */
+	if (!slave_port)
+		return -ENODEV;
+
 	rmnet_unregister_real_device(slave_dev, slave_port);
 
 	netdev_dbg(slave_dev, "removed from rmnet as slave\n");

@@ -28,9 +28,7 @@ struct rmnet_ctl_endpoint {
 	void *ipc_log;
 };
 
-#if defined(CONFIG_IPA_DEBUG) || defined(CONFIG_MHI_DEBUG)
 #define CONFIG_RMNET_CTL_DEBUG 1
-#endif
 
 #ifdef CONFIG_RMNET_CTL_DEBUG
 static u8 ipc_log_lvl = RMNET_CTL_LOG_DEBUG;

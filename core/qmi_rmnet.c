@@ -30,7 +30,9 @@
 #include <linux/ipv6.h>
 #include <linux/suspend.h>
 #include <linux/notifier.h>
+#if !defined(TRANSPORT_RMNET_BAM)
 #include <linux/ipa.h>
+#endif
 #include "rmnet_mem.h"
 
 #define NLMSG_FLOW_ACTIVATE 1
@@ -74,12 +76,14 @@ static unsigned int qmi_rmnet_scale_factor = 5;
 static LIST_HEAD(qos_cleanup_list);
 #endif
 
+#ifndef RMNET_DISABLE_DFC_SUSPEND
 static int qmi_rmnet_pm_notify_cb(struct notifier_block *notifier,
 		unsigned long pm_event, void *unused);
 
 static struct notifier_block dfc_pm_notifier = {
 	.notifier_call = qmi_rmnet_pm_notify_cb,
 };
+#endif
 
 static struct qmi_info __rcu *qmi_info_ptr = NULL;
 
@@ -162,6 +166,7 @@ qmi_rmnet_has_pending(struct qmi_info *qmi)
 
 void qmi_reset_pm_notifier_state(u8 register_for_pm)
 {
+#ifndef RMNET_DISABLE_DFC_SUSPEND
 	if (register_for_pm) {
 		register_pm_notifier(&dfc_pm_notifier);
 		pr_err("RMNET registered pm_notifier\n");
@@ -171,6 +176,7 @@ void qmi_reset_pm_notifier_state(u8 register_for_pm)
 		pr_err("RMNET De-registered pm_notifier\n");
 
 	}
+#endif
 }
 
 #ifdef CONFIG_QTI_QMI_DFC
@@ -1262,6 +1268,7 @@ int qmi_rmnet_set_powersave_mode(void *port, uint8_t enable, u8 num_bearers,
 }
 EXPORT_SYMBOL(qmi_rmnet_set_powersave_mode);
 
+#ifndef RMNET_DISABLE_DFC_SUSPEND
 static int qmi_rmnet_pm_notify_cb(struct notifier_block *notifier,
 		unsigned long pm_event, void *unused)
 {
@@ -1335,7 +1342,7 @@ static int qmi_rmnet_pm_notify_cb(struct notifier_block *notifier,
 done:
 	return NOTIFY_DONE;
 }
-
+#endif
 
 static void qmi_rmnet_work_restart(void *port)
 {

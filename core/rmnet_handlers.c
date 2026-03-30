@@ -21,7 +21,9 @@
 #include <linux/ipv6.h>
 #include <linux/inet.h>
 #include <net/sock.h>
+#if !defined(TRANSPORT_RMNET_BAM)
 #include <linux/ipa.h>
+#endif
 #include <linux/tracepoint.h>
 #include "rmnet_private.h"
 #include "rmnet_config.h"
@@ -496,9 +498,11 @@ drop:
 	kfree_skb(skb);
 }
 
+#if !defined(TRANSPORT_RMNET_BAM)
 int rmnet_ipa_notify_cb(struct notifier_block *nb,
 			unsigned long event, void *data)
 {
 	rmnet_mem_cb(event, data);
 	return 0;
 }
+#endif

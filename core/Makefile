@@ -43,6 +43,8 @@ rmnet_eth-y += 		rmnet_eth_main.o
 
 KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
 
+ccflags-y += $(EXTRA_CFLAGS)
+
 KBUILD_OPTIONS := RMNET_CORE_ROOT=$(PWD)
 KBUILD_OPTIONS += MODNAME?=rmnet_core
 

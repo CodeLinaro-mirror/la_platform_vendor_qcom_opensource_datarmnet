@@ -1,3 +1,5 @@
+ccflags-y += $(EXTRA_CFLAGS)
+
 ifneq (, $(filter y, $(CONFIG_ARCH_LAHAINA) $(CONFIG_ARCH_WAIPIO) $(CONFIG_ARCH_PARROT) $(CONFIG_ARCH_KALAMA)))
 ccflags-y	+= -DRMNET_LA_PLATFORM
 endif

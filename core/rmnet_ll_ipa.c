@@ -15,9 +15,9 @@
 
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
-#if !defined(__arch_um__)
+#if !defined(__arch_um__) && !defined(TRANSPORT_RMNET_BAM)
 	#include <linux/ipa.h>
-#endif /* !defined(__arch_um__) */
+#endif
 #include <linux/if_ether.h>
 #include <linux/interrupt.h>
 #include <linux/version.h>
@@ -29,7 +29,7 @@
 
 #define MAX_Q_LEN 1000
 
-#if !defined(__arch_um__)
+#if !defined(__arch_um__) && !defined(TRANSPORT_RMNET_BAM)
 static struct rmnet_ll_endpoint *rmnet_ll_ipa_ep;
 static struct sk_buff_head tx_pending_list;
 extern spinlock_t rmnet_ll_tx_lock;
@@ -221,7 +221,7 @@ static int rmnet_ll_ipa_exit(void)
 static int rmnet_ll_ipa_tx(struct sk_buff *skb){return 0;};
 static int rmnet_ll_ipa_init(void){return 0;}
 static int rmnet_ll_ipa_exit(void){return 0;};
-#endif /* !defined(__arch_um__) */
+#endif /* !defined(__arch_um__) && !defined(TRANSPORT_RMNET_BAM) */
 
 /* Export operations struct to the main framework */
 struct rmnet_ll_client_ops rmnet_ll_client = {

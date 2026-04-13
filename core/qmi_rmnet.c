@@ -30,7 +30,9 @@
 #include <linux/ipv6.h>
 #include <linux/suspend.h>
 #include <linux/notifier.h>
+#if !defined(TRANSPORT_RMNET_BAM)
 #include <linux/ipa.h>
+#endif
 #include "rmnet_mem.h"
 
 #define NLMSG_FLOW_ACTIVATE 1

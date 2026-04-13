@@ -29,7 +29,9 @@
 #include "rmnet_genl.h"
 #include "rmnet_qmi.h"
 #include "qmi_rmnet.h"
+#if !defined(TRANSPORT_RMNET_BAM)
 #include <linux/ipa.h>
+#endif
 #define CONFIG_QTI_QMI_RMNET 1
 #define CONFIG_QTI_QMI_DFC  1
 #define CONFIG_QTI_QMI_POWER_COLLAPSE 1
@@ -141,10 +143,12 @@ static int rmnet_register_real_device(struct net_device *real_dev)
 
 	rmnet_map_tx_aggregate_init(port);
 	rmnet_map_cmd_init(port);
+#if !defined(TRANSPORT_RMNET_BAM)
 	if (ipa_register_notifier(&rmnet_ipa_notify_cb) < 0) {
 		rc = -ENOMEM;
 		goto err;
 	}
+#endif
 
 	for (entry = 0; entry < RMNET_MAX_LOGICAL_EP; entry++)
 		INIT_HLIST_HEAD(&port->muxed_ep[entry]);
@@ -867,7 +871,7 @@ static int __init rmnet_init(void)
 		unregister_netdevice_notifier(&rmnet_dev_notifier);
 		return rc;
 	}
-
+#if !defined(TRANSPORT_RMNET_BAM)
 	rc = rmnet_ll_init();
 	if (rc != 0) {
 		unregister_netdevice_notifier(&rmnet_dev_notifier);
@@ -876,7 +880,7 @@ static int __init rmnet_init(void)
 	}
 
 	rmnet_core_genl_init();
-
+#endif
 	qmi_reset_pm_notifier_state(1);
 
 	try_module_get(THIS_MODULE);
@@ -887,9 +891,11 @@ static void __exit rmnet_exit(void)
 {
 	unregister_netdevice_notifier(&rmnet_dev_notifier);
 	rtnl_link_unregister(&rmnet_link_ops);
+#if !defined(TRANSPORT_RMNET_BAM)
 	rmnet_ll_exit();
 	rmnet_core_genl_deinit();
 	ipa_unregister_notifier(&rmnet_ipa_notify_cb);
+#endif
 	qmi_reset_pm_notifier_state(0);
 
 	module_put(THIS_MODULE);

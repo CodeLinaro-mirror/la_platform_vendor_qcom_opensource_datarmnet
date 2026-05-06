@@ -612,12 +612,19 @@ static int rmnet_eth_newlink(struct net_device *dev,
 	if (err)
 		goto err1;
 
+	err = netdev_upper_dev_link(real_dev, dev, extack);
+	if (err < 0)
+		goto err2;
+
 	port->rmnet_mode = mode;
 
 	hlist_add_head_rcu(&ep->hlnode, &port->muxed_ep[mux_id]);
 
 	return 0;
 
+err2:
+	hlist_del_init_rcu(&ep->hlnode);
+	unregister_netdevice(dev);
 err1:
 	rmnet_eth_unregister_real_device(real_dev, port);
 err0:
@@ -649,6 +656,7 @@ static void rmnet_eth_dellink(struct net_device *dev, struct list_head *head)
 		rmnet_veth_dellink(mux_id, port, ep);
 		kfree(ep);
 	}
+	netdev_upper_dev_unlink(real_dev, dev);
 	unregister_netdevice(dev);
 	rmnet_eth_unregister_real_device(real_dev, port);
 }
@@ -781,6 +789,7 @@ static void rmnet_eth_force_unassociate_device(struct net_device *dev)
 		hlist_del_init_rcu(&ep->hlnode);
 
 	hash_for_each_safe(port->muxed_ep, bkt_ep, tmp_ep, ep, hlnode) {
+		netdev_upper_dev_unlink(real_dev, ep->egress_dev);
 		unregister_netdevice_queue(ep->egress_dev, &list);
 		rmnet_veth_dellink(ep->mux_id, port, ep);
 
@@ -873,8 +882,8 @@ static int __init rmnet_eth_init(void)
 
 static void __exit rmnet_eth_exit(void)
 {
-	unregister_netdevice_notifier(&rmnet_eth_dev_notifier);
 	rtnl_link_unregister(&rmnet_eth_link_ops);
+	unregister_netdevice_notifier(&rmnet_eth_dev_notifier);
 }
 
 module_init(rmnet_eth_init)

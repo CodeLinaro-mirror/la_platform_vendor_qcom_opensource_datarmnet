@@ -133,6 +133,8 @@ def define_rmnet_core_module(target, variant):
     rmnet_local_defines = ["RMNET_TRACE_INCLUDE_PATH={}/core".format(include_base)]
     if target == "shikra":
         rmnet_local_defines += ["TRANSPORT_RMNET_BAM"]
+    if target in ["malabar", "chora"]:
+        rmnet_local_defines += ["RMNET_DISABLE_DFC_SUSPEND"]
 
     ddk_module(
         name = "{}_rmnet_core".format(kernel_build_variant),

@@ -26,10 +26,6 @@
 #define RMNET_INGRESS_FORMAT_DL_MARKER_V1       BIT(30)
 #define RMNET_INGRESS_FORMAT_DL_MARKER_V2       BIT(29)
 
-#define RMNET_FLAGS_INGRESS_COALESCE            BIT(4)
-#define RMNET_PRIV_FLAGS_INGRESS_MAP_CKSUMV5    BIT(5)
-#define RMNET_PRIV_FLAGS_EGRESS_MAP_CKSUMV5     BIT(6)
-
 #define RMNET_INGRESS_FORMAT_DL_MARKER  (RMNET_INGRESS_FORMAT_DL_MARKER_V1 |\
 RMNET_INGRESS_FORMAT_DL_MARKER_V2)
 
@@ -40,12 +36,17 @@ RMNET_INGRESS_FORMAT_DL_MARKER_V2)
 #define RMNET_INGRESS_FORMAT_PS                 BIT(27)
 #define RMNET_FORMAT_PS_NOTIF                   BIT(26)
 
-/* UL Aggregation parameters */
-#define RMNET_PAGE_RECYCLE                      BIT(0)
-
 /* IP-Mux feature */
 #define RMNET_INGRESS_FORMAT_IP_ROUTE           BIT(25)
 #define RMNET_EGRESS_FORMAT_IP_ROUTE            BIT(24)
+
+#define RMNET_FLAGS_INGRESS_COALESCE            BIT(22)
+
+#define RMNET_PRIV_FLAGS_INGRESS_MAP_CKSUMV5    BIT(4)
+#define RMNET_PRIV_FLAGS_EGRESS_MAP_CKSUMV5     BIT(5)
+
+/* UL Aggregation parameters */
+#define RMNET_PAGE_RECYCLE                      BIT(0)
 
 /* Replace skb->dev to a virtual rmnet device and pass up the stack */
 #define RMNET_EPMODE_VND (1)

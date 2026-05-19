@@ -1,13 +1,7 @@
-/* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: GPL-2.0-only
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #if !defined(__RMNET_HOOKS__) || defined(__RMNET_HOOK_MULTIREAD__)
@@ -112,5 +106,13 @@ RMNET_MODULE_HOOK(eth_rx_handler,
 	RMNET_MODULE_HOOK_ARGS(pskb, eth_ep),
 	RMNET_MODULE_HOOK_RETURN_TYPE(rx_handler_result_t)
 );
+
+RMNET_MODULE_HOOK(wlan_ingress_rx_handler,
+		RMNET_MODULE_HOOK_NUM(WLAN_INGRESS_RX_HANDLER),
+		RMNET_MODULE_HOOK_PROTOCOL(struct sk_buff **pskb),
+		RMNET_MODULE_HOOK_ARGS(pskb),
+		RMNET_MODULE_HOOK_RETURN_TYPE(rx_handler_result_t)
+);
+
 
 #endif

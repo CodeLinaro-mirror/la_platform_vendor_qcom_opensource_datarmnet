@@ -1,14 +1,6 @@
 /* Copyright (c) 2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * RmNet IPA Low Latency channel handlers
  */
@@ -36,7 +28,7 @@ extern spinlock_t rmnet_ll_tx_lock;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0)
 static void rmnet_ll_ipa_tx_pending(unsigned long data);
-DECLARE_TASKLET(tx_pending_task, rmnet_ll_ipa_tx_pending, 0);
+DECLARE_TASKLET_OLD(tx_pending_task, rmnet_ll_ipa_tx_pending);
 static void rmnet_ll_ipa_tx_pending(unsigned long data)
 #else
 static void rmnet_ll_ipa_tx_pending(struct tasklet_struct *t);

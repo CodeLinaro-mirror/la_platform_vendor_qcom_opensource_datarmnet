@@ -14,7 +14,7 @@ ifeq ($(CONFIG_ARCH_KERA), y)
 ccflags-y       += $(LE_EXTRA_CFLAGS)
 endif
 
-obj-m += rmnet_core.o
+obj-$(CONFIG_RMNET_CORE) += rmnet_core.o
 
 #core sources
 rmnet_core-y := \

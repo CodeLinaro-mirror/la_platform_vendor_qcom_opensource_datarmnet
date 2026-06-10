@@ -14,6 +14,7 @@ def define_modules(target, variant):
     ddk_module(
         name = "{}-defconfig_rmnet_core".format(kernel_build_variant),
         out = "rmnet_core.ko",
+        copts = ["-Wno-error=array-bounds", "-Wno-array-bounds"],
         srcs = [
             "core/rmnet_config.c",
             "core/rmnet_descriptor.c",
@@ -37,6 +38,7 @@ def define_modules(target, variant):
             ":rmnet_core_headers",
             "//msm-kernel:all_headers_arm",
             "//dataipa:include_headers",
+            "//dataipa:{}_defconfig_ipam".format(kernel_build_variant),
         ],
     )
     mod_list.append("{}-defconfig_rmnet_core".format(kernel_build_variant))
@@ -44,6 +46,7 @@ def define_modules(target, variant):
     ddk_module(
         name = "{}-defconfig_rmnet_eth".format(kernel_build_variant),
         out = "rmnet_eth.ko",
+        copts = ["-Wno-error=array-bounds", "-Wno-array-bounds"],
         srcs = [
             "core/rmnet_eth_main.c",
         ],

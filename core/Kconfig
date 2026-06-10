@@ -3,21 +3,22 @@
 #
 
 menuconfig RMNET_CORE
-	default m 
+	tristate "RMNET core support"
+	default m
 	select GRO_CELLS
-	---help---
+	help
 	  If you select this, you will enable the RMNET module which is used
 	  for handling data in the multiplexing and aggregation protocol (MAP)
 	  format in the embedded data path. RMNET devices can be attached to
 	  any IP mode physical device.
 
 menuconfig RMNET_CTL
-	default m
-	---help---
+	tristate "RMNET ctl support"
+	help
 	  Enable the RMNET CTL module which is used for handling QMAP commands
 	  for flow control purposes.
 
 menuconfig RMNET_ETH
-	default m
-	---help---
+	tristate "RMNET rth support"
+	help
 	  Enable the RMNET ETH module which is used for handling ethernet frames

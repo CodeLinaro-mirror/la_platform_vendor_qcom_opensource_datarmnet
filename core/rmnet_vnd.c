@@ -929,9 +929,6 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 
 	priv->real_dev = real_dev;
 
-	rmnet_dev->gso_max_size = 64000;
-	rmnet_dev->gso_ipv4_max_size = 64000;
-
 	rc = register_netdevice(rmnet_dev);
 	if (!rc) {
 		ep->egress_dev = rmnet_dev;

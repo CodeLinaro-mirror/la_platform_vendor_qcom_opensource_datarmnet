@@ -277,6 +277,8 @@ struct rmnet_priv_stats {
 	u64 tso_segment_skip;
 	u64 ll_tso_segs;
 	u64 ll_tso_errs;
+	u64 ipsec_tso_segs;
+	u64 ipsec_tso_errs;
 	u64 aps_prio;
 	u64 ip_route_tx_pkts;
 	u64 ip_route_rx_pkts;

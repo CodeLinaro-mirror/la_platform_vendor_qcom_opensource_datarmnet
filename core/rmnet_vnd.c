@@ -180,7 +180,10 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 			if (IS_ERR_OR_NULL(segs)) {
 				this_cpu_add(priv->pcpu_stats->stats.tx_drops,
 					     skb_shinfo(skb)->gso_segs);
-				priv->stats.ll_tso_errs++;
+				if (ipsec)
+					priv->stats.ipsec_tso_errs++;
+				else
+					priv->stats.ll_tso_errs++;
 				goto drop_packet;
 			}
 
@@ -188,7 +191,10 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 			for (skb = segs; skb; skb = tmp) {
 				tmp = skb->next;
 				skb->dev = dev;
-				priv->stats.ll_tso_segs++;
+				if (ipsec)
+					priv->stats.ipsec_tso_segs++;
+				else
+					priv->stats.ll_tso_segs++;
 				skb_mark_not_on_list(skb);
 				rmnet_egress_handler(skb, low_latency, ipsec);
 			}
@@ -953,8 +959,6 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 	rmnet_dev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	rmnet_dev->hw_features |= NETIF_F_SG;
 	rmnet_dev->hw_features |= NETIF_F_GRO_HW;
-	rmnet_dev->hw_features |= NETIF_F_GSO_UDP_L4;
-	rmnet_dev->hw_features |= NETIF_F_ALL_TSO;
 
 #if IS_ENABLED(CONFIG_XFRM)
 	if ((real_dev->features & NETIF_F_HW_ESP) &&
@@ -967,7 +971,22 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 #endif /* CONFIG_XFRM */
 	priv->real_dev = real_dev;
 
-	rmnet_dev->gso_max_size = 64000;
+	/* Enable ULSO/TSO features only if real_dev supports them. */
+	if (real_dev->hw_features & NETIF_F_GSO_UDP_L4) {
+		rmnet_dev->hw_features |= NETIF_F_GSO_UDP_L4;
+		rmnet_dev->features |= NETIF_F_GSO_UDP_L4;
+	}
+	if (real_dev->hw_features & NETIF_F_ALL_TSO) {
+		rmnet_dev->hw_features |= NETIF_F_ALL_TSO;
+		rmnet_dev->features |= NETIF_F_ALL_TSO;
+	}
+	if (real_dev->hw_features & (NETIF_F_GSO_UDP_L4 | NETIF_F_ALL_TSO)) {
+		rmnet_dev->features |= NETIF_F_SG;
+		rmnet_dev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+		/* Needed as stack may coalesce upto this and then validate
+		   against this value in validate_xmit_skb() */
+		rmnet_dev->gso_max_size = 65535;
+	}
 
 	rc = register_netdevice(rmnet_dev);
 	if (!rc) {

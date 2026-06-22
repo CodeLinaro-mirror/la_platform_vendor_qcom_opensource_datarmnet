@@ -960,6 +960,9 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 	rmnet_dev->hw_features |= NETIF_F_SG;
 	rmnet_dev->hw_features |= NETIF_F_GRO_HW;
 
+	rmnet_dev->features |= NETIF_F_RXCSUM;
+	rmnet_dev->features |= NETIF_F_GRO_HW;
+
 #if IS_ENABLED(CONFIG_XFRM)
 	if ((real_dev->features & NETIF_F_HW_ESP) &&
 	    (real_dev->hw_enc_features & NETIF_F_HW_ESP)) {

@@ -153,6 +153,9 @@ static int rmnet_register_real_device(struct net_device *real_dev)
 		return -EBUSY;
 	}
 
+	port->data_format |= RMNET_FLAGS_INGRESS_COALESCE |
+			     RMNET_PRIV_FLAGS_INGRESS_MAP_CKSUMV5;
+
 	for (entry = 0; entry < RMNET_MAX_LOGICAL_EP; entry++)
 	{
 		INIT_HLIST_HEAD(&port->muxed_ep[entry]);

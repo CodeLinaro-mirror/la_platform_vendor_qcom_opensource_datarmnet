@@ -612,6 +612,28 @@ struct rmnet_bearer_map *qmi_rmnet_get_bearer_noref(struct qos_info *qos_info,
 	return bearer;
 }
 
+/**
+ * qmi_rmnet_flow_control_queue_pair - Control both data and ACK queues
+ * @dev: Network device
+ * @data_queue_id: Data queue ID
+ * @enable: RMNET_QUEUE_PAIR_ENABLE or RMNET_QUEUE_PAIR_DISABLE
+ *
+ * Controls both the data queue and its corresponding ACK queue .
+ * This ensures consistent flow control for both data and ACK traffic.
+ */
+void qmi_rmnet_flow_control_queue_pair(struct net_device *dev,
+				       uint32_t data_queue_id,
+				       int enable)
+{
+	uint32_t ack_queue_id = data_queue_id + ACK_MQ_OFFSET;
+
+	/* Control data queue */
+	qmi_rmnet_flow_control(dev, data_queue_id, enable);
+
+	/* Control ACK queue */
+	qmi_rmnet_flow_control(dev, ack_queue_id, enable);
+}
+EXPORT_SYMBOL(qmi_rmnet_flow_control_queue_pair);
 
 
 #else
@@ -1092,6 +1114,34 @@ done:
 	spin_unlock_bh(&qos->qos_lock);
 	return txq;
 }
+
+/* Legacy queue selection (non-DFC mode) */
+int qmi_rmnet_get_queue_legacy(struct net_device *dev, struct sk_buff *skb)
+{
+	struct rmnet_priv *priv = netdev_priv(dev);
+	uint32_t data_queue;
+	void *p;
+	int txq = 0;
+	bool is_ack;
+
+	/* Look up flow by mark (same mark for data and ACK) */
+	p = xa_load(&priv->queue_map, skb->mark);
+	if (p && xa_is_value(p)) {
+		data_queue = xa_to_value(p);
+
+		is_ack = qmi_rmnet_is_tcp_ack(skb);
+		if (is_ack)
+			txq = data_queue + ACK_MQ_OFFSET;
+		else
+			txq = data_queue;
+
+		trace_legacy_flow_check(dev->name, skb->len, skb->mark,
+					txq, is_ack);
+	}
+
+	return txq;
+}
+EXPORT_SYMBOL(qmi_rmnet_get_queue_legacy);
 
 int qmi_rmnet_get_queue(struct net_device *dev, struct sk_buff *skb)
 {

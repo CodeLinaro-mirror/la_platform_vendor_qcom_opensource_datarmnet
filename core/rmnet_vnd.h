@@ -28,4 +28,7 @@ void rmnet_vnd_tx_fixup(struct net_device *dev, u32 skb_len);
 u8 rmnet_vnd_get_mux(struct net_device *rmnet_dev);
 void rmnet_vnd_setup(struct net_device *dev);
 void rmnet_vnd_reset_mac_addr(struct net_device *dev);
+int rmnet_vnd_update_queue_map(struct net_device *dev, u8 operation,
+				u8 txqueue, u32 mark,
+				struct netlink_ext_ack *extack);
 #endif /* _RMNET_VND_H_ */

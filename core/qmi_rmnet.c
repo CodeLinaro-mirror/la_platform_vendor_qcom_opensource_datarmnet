@@ -76,12 +76,14 @@ static unsigned int qmi_rmnet_scale_factor = 5;
 static LIST_HEAD(qos_cleanup_list);
 #endif
 
+#ifndef RMNET_DISABLE_DFC_SUSPEND
 static int qmi_rmnet_pm_notify_cb(struct notifier_block *notifier,
 		unsigned long pm_event, void *unused);
 
 static struct notifier_block dfc_pm_notifier = {
 	.notifier_call = qmi_rmnet_pm_notify_cb,
 };
+#endif
 
 static struct qmi_info __rcu *qmi_info_ptr = NULL;
 
@@ -164,6 +166,7 @@ qmi_rmnet_has_pending(struct qmi_info *qmi)
 
 void qmi_reset_pm_notifier_state(u8 register_for_pm)
 {
+#ifndef RMNET_DISABLE_DFC_SUSPEND
 	if (register_for_pm) {
 		register_pm_notifier(&dfc_pm_notifier);
 		pr_err("RMNET registered pm_notifier\n");
@@ -173,6 +176,7 @@ void qmi_reset_pm_notifier_state(u8 register_for_pm)
 		pr_err("RMNET De-registered pm_notifier\n");
 
 	}
+#endif
 }
 
 #ifdef CONFIG_QTI_QMI_DFC
@@ -608,6 +612,28 @@ struct rmnet_bearer_map *qmi_rmnet_get_bearer_noref(struct qos_info *qos_info,
 	return bearer;
 }
 
+/**
+ * qmi_rmnet_flow_control_queue_pair - Control both data and ACK queues
+ * @dev: Network device
+ * @data_queue_id: Data queue ID
+ * @enable: RMNET_QUEUE_PAIR_ENABLE or RMNET_QUEUE_PAIR_DISABLE
+ *
+ * Controls both the data queue and its corresponding ACK queue .
+ * This ensures consistent flow control for both data and ACK traffic.
+ */
+void qmi_rmnet_flow_control_queue_pair(struct net_device *dev,
+				       uint32_t data_queue_id,
+				       int enable)
+{
+	uint32_t ack_queue_id = data_queue_id + ACK_MQ_OFFSET;
+
+	/* Control data queue */
+	qmi_rmnet_flow_control(dev, data_queue_id, enable);
+
+	/* Control ACK queue */
+	qmi_rmnet_flow_control(dev, ack_queue_id, enable);
+}
+EXPORT_SYMBOL(qmi_rmnet_flow_control_queue_pair);
 
 
 #else
@@ -1089,6 +1115,34 @@ done:
 	return txq;
 }
 
+/* Legacy queue selection (non-DFC mode) */
+int qmi_rmnet_get_queue_legacy(struct net_device *dev, struct sk_buff *skb)
+{
+	struct rmnet_priv *priv = netdev_priv(dev);
+	uint32_t data_queue;
+	void *p;
+	int txq = 0;
+	bool is_ack;
+
+	/* Look up flow by mark (same mark for data and ACK) */
+	p = xa_load(&priv->queue_map, skb->mark);
+	if (p && xa_is_value(p)) {
+		data_queue = xa_to_value(p);
+
+		is_ack = qmi_rmnet_is_tcp_ack(skb);
+		if (is_ack)
+			txq = data_queue + ACK_MQ_OFFSET;
+		else
+			txq = data_queue;
+
+		trace_legacy_flow_check(dev->name, skb->len, skb->mark,
+					txq, is_ack);
+	}
+
+	return txq;
+}
+EXPORT_SYMBOL(qmi_rmnet_get_queue_legacy);
+
 int qmi_rmnet_get_queue(struct net_device *dev, struct sk_buff *skb)
 {
 	struct qos_info *qos = rmnet_get_qos_pt(dev);
@@ -1264,6 +1318,7 @@ int qmi_rmnet_set_powersave_mode(void *port, uint8_t enable, u8 num_bearers,
 }
 EXPORT_SYMBOL(qmi_rmnet_set_powersave_mode);
 
+#ifndef RMNET_DISABLE_DFC_SUSPEND
 static int qmi_rmnet_pm_notify_cb(struct notifier_block *notifier,
 		unsigned long pm_event, void *unused)
 {
@@ -1337,7 +1392,7 @@ static int qmi_rmnet_pm_notify_cb(struct notifier_block *notifier,
 done:
 	return NOTIFY_DONE;
 }
-
+#endif
 
 static void qmi_rmnet_work_restart(void *port)
 {

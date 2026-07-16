@@ -80,6 +80,7 @@ bool qmi_rmnet_get_flow_state(struct net_device *dev, struct sk_buff *skb,
 void qmi_rmnet_burst_fc_check(struct net_device *dev,
 			      int ip_type, u32 mark, unsigned int len);
 int qmi_rmnet_get_queue(struct net_device *dev, struct sk_buff *skb);
+int qmi_rmnet_get_queue_legacy(struct net_device *dev, struct sk_buff *skb);
 #else
 static inline void *
 qmi_rmnet_qos_init(struct net_device *real_dev,

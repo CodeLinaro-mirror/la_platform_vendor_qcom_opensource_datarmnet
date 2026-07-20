@@ -97,7 +97,6 @@ int rmnet_clean_pending_real_dev(struct net_device *real_dev,
 	rmnet_descriptor_deinit(port);
 
 	kfree(port);
-	dev_put(real_dev);
 
 	return 0;
 }
@@ -153,8 +152,9 @@ static int rmnet_register_real_device(struct net_device *real_dev)
 		kfree(port);
 		return -EBUSY;
 	}
-	/* hold on to real dev for MAP data */
-	dev_hold(real_dev);
+
+	port->data_format |= RMNET_FLAGS_INGRESS_COALESCE |
+			     RMNET_PRIV_FLAGS_INGRESS_MAP_CKSUMV5;
 
 	for (entry = 0; entry < RMNET_MAX_LOGICAL_EP; entry++)
 	{
@@ -250,6 +250,10 @@ static int rmnet_newlink(struct net_device *dev,
 	if (err)
 		goto err1;
 
+	err = netdev_upper_dev_link(real_dev, dev, extack);
+	if (err < 0)
+		goto err2;
+
 	port->rmnet_mode = mode;
 
 	hlist_add_head_rcu(&ep->hlnode, &port->muxed_ep[mux_id]);
@@ -300,7 +304,7 @@ static int rmnet_newlink(struct net_device *dev,
 						 queue_map->txqueue,
 						 queue_map->mark, extack);
 		if (err < 0)
-			goto err2;
+			goto err3;
 
 		netdev_dbg(dev, "op %02x txq %02x mark %08x\n",
 			   queue_map->operation, queue_map->txqueue,
@@ -309,8 +313,12 @@ static int rmnet_newlink(struct net_device *dev,
 
 	return 0;
 
+err3:
+	hlist_del_init_rcu(&ep->hlnode);
+	netdev_upper_dev_unlink(real_dev, dev);
 err2:
 	hlist_del_init_rcu(&ep->hlnode);
+	unregister_netdevice(dev);
 err1:
 	rmnet_unregister_real_device(real_dev, port);
 err0:
@@ -347,6 +355,7 @@ static void rmnet_dellink(struct net_device *dev, struct list_head *head)
 	if (!port->nr_rmnet_devs)
 		qmi_rmnet_qmi_exit(port->qmi_info, port);
 
+	netdev_upper_dev_unlink(real_dev, dev);
 	unregister_netdevice(dev);
 
 	qmi_rmnet_qos_exit_post();
@@ -354,9 +363,8 @@ static void rmnet_dellink(struct net_device *dev, struct list_head *head)
 	rmnet_unregister_real_device(real_dev, port);
 }
 
-static void rmnet_force_unassociate_device(struct net_device *dev)
+static void rmnet_force_unassociate_device(struct net_device *real_dev)
 {
-	struct net_device *real_dev = dev;
 	struct hlist_node *tmp_ep;
 	struct rmnet_endpoint *ep;
 	struct rmnet_port *port;
@@ -364,23 +372,20 @@ static void rmnet_force_unassociate_device(struct net_device *dev)
 	LIST_HEAD(list);
 	HLIST_HEAD(cleanup_list);
 
-	if (!rmnet_is_real_dev_registered(real_dev))
-		return;
-
 	ASSERT_RTNL();
 
-	port = rmnet_get_port_rtnl(dev);
+	port = rmnet_get_port_rtnl(real_dev);
 	qmi_rmnet_qmi_exit(port->qmi_info, port);
 
-	rmnet_unregister_bridge(dev, port);
+	rmnet_unregister_bridge(real_dev, port);
 
 	hlist_for_each_entry_rcu(ep, &port->muxed_ep[0], hlnode)
 		hlist_del_init_rcu(&ep->hlnode);
 
 	hash_for_each_safe(port->muxed_ep, bkt_ep, tmp_ep, ep, hlnode) {
+		netdev_upper_dev_unlink(real_dev, ep->egress_dev);
 		unregister_netdevice_queue(ep->egress_dev, &list);
 		rmnet_vnd_dellink(ep->mux_id, port, ep);
-
 		hlist_del_init_rcu(&ep->hlnode);
 		hlist_add_head(&ep->hlnode, &cleanup_list);
 	}
@@ -405,18 +410,18 @@ static void rmnet_force_unassociate_device(struct net_device *dev)
 static int rmnet_config_notify_cb(struct notifier_block *nb,
 				  unsigned long event, void *data)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(data);
+	struct net_device *real_dev = netdev_notifier_info_to_dev(data);
 
-	if (!dev)
+	if (!rmnet_is_real_dev_registered(real_dev))
 		return NOTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
-		netdev_dbg(dev, "Kernel unregister\n");
-		rmnet_force_unassociate_device(dev);
+		netdev_dbg(real_dev, "Kernel unregister\n");
+		rmnet_force_unassociate_device(real_dev);
 		break;
 	case NETDEV_DOWN:
-		rmnet_vnd_reset_mac_addr(dev);
+		rmnet_vnd_reset_mac_addr(real_dev);
 		break;
 	default:
 		break;
@@ -1183,8 +1188,8 @@ static void __exit rmnet_exit(void)
 {
 	unregister_inetaddr_notifier(&rmnet_addr4_notifier_block);
 	unregister_inet6addr_notifier(&rmnet_addr6_notifier_block);
-	unregister_netdevice_notifier(&rmnet_dev_notifier);
 	rtnl_link_unregister(&rmnet_link_ops);
+	unregister_netdevice_notifier(&rmnet_dev_notifier);
 #ifdef RMNET_LA_PLATFORM
 	rmnet_ll_exit();
 #endif

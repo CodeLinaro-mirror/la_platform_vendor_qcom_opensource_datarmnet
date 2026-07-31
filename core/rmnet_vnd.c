@@ -918,6 +918,21 @@ static const struct xfrmdev_ops rmnet_xfrmdev_ops = {
 	.xdo_dev_policy_free = rmnet_xfrm_policy_free,
 };
 #endif /* CONFIG_XFRM */
+
+struct net_device *rmnet_vnd_alloc(struct nlattr *tb[], const char *ifname,
+				   unsigned char name_assign_type,
+				   unsigned int num_tx_queues,
+				   unsigned int num_rx_queues)
+{
+	if (num_tx_queues != RMNET_MAX_TX_QUEUES)
+		pr_debug("Interface %s will have %d TX queues", ifname,
+			 RMNET_MAX_TX_QUEUES);
+
+	return alloc_netdev_mqs(rmnet_link_ops.priv_size, ifname,
+				name_assign_type, rmnet_link_ops.setup,
+				RMNET_MAX_TX_QUEUES, num_rx_queues);
+}
+
 /* Called by kernel whenever a new rmnet<n> device is created. Sets MTU,
  * flags, ARP type, needed headroom, etc...
  */

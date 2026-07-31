@@ -682,6 +682,7 @@ struct rtnl_link_ops rmnet_link_ops __read_mostly = {
 	.kind		= "rmnet",
 	.maxtype	= __IFLA_RMNET_EXT_MAX - 1,
 	.priv_size	= sizeof(struct rmnet_priv),
+	.alloc		= rmnet_vnd_alloc,
 	.setup		= rmnet_vnd_setup,
 	.validate	= rmnet_rtnl_validate,
 	.newlink	= rmnet_newlink,

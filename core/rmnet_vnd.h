@@ -1,5 +1,5 @@
 /* Copyright (c) 2013-2018, 2020-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022,2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,6 +27,11 @@ int rmnet_vnd_dellink(u8 id, struct rmnet_port *port,
 void rmnet_vnd_rx_fixup(struct net_device *dev, u32 skb_len);
 void rmnet_vnd_tx_fixup(struct net_device *dev, u32 skb_len);
 u8 rmnet_vnd_get_mux(struct net_device *rmnet_dev);
+struct net_device *rmnet_vnd_alloc(struct nlattr *tb[],
+				   const char *ifname,
+				   unsigned char name_assign_type,
+				   unsigned int num_tx_queues,
+				   unsigned int num_rx_queues);
 void rmnet_vnd_setup(struct net_device *dev);
 void rmnet_vnd_reset_mac_addr(struct net_device *dev);
 int rmnet_vnd_update_queue_map(struct net_device *dev, u8 operation,

@@ -17,6 +17,7 @@
 
 #include <linux/skbuff.h>
 #include <linux/version.h>
+#include <linux/xarray.h>
 #include <net/gro_cells.h>
 
 #ifndef _RMNET_CONFIG_H_
@@ -59,6 +60,19 @@ struct rmnet_endpoint {
 struct rmnet_agg_stats {
 	u64 ul_agg_reuse;
 	u64 ul_agg_alloc;
+};
+
+#define RMNET_QUEUE_MAPPING_ADD 9
+#define RMNET_QUEUE_MAPPING_REMOVE 10
+#define RMNET_QUEUE_ENABLE 11
+#define RMNET_QUEUE_DISABLE 12
+#define RMNET_QUEUE_SET_LEGACY_MODE 13
+
+struct rmnet_queue_mapping {
+	u8 operation;
+	u8 txqueue;
+	u16 padding;
+	u32 mark;
 };
 
 struct rmnet_port_priv_stats {
@@ -130,6 +144,7 @@ struct rmnet_port {
 	u32 data_format;
 	u8 nr_rmnet_devs;
 	u8 rmnet_mode;
+	uint8_t qos_legacy_mode;
 	struct hlist_head muxed_ep[RMNET_MAX_LOGICAL_EP];
 	struct net_device *bridge_ep;
 	void *rmnet_perf;
@@ -228,6 +243,7 @@ struct rmnet_priv {
 	struct rmnet_priv_stats stats;
 	void __rcu *qos_info;
 	char aps_cb[16];
+	struct xarray queue_map;
 };
 
 enum rmnet_dl_marker_prio {

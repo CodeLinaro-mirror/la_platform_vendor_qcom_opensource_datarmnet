@@ -42,6 +42,7 @@
 #include "rmnet_module.h"
 
 #include "qmi_rmnet.h"
+#include "qmi_rmnet_i.h"
 #include "rmnet_qmi.h"
 #include "rmnet_trace.h"
 
@@ -235,8 +236,12 @@ static int rmnet_vnd_init(struct net_device *dev)
 static void rmnet_vnd_uninit(struct net_device *dev)
 {
 	struct rmnet_priv *priv = netdev_priv(dev);
+	struct rmnet_port *port = rmnet_get_port(priv->real_dev);
 	void *qos;
 
+	/* Only destroy xa_array if QOS legacy mode was enabled on port */
+	if (port && port->qos_legacy_mode)
+		xa_destroy(&priv->queue_map);
 	gro_cells_destroy(&priv->gro_cells);
 	free_percpu(priv->pcpu_stats);
 
@@ -281,6 +286,7 @@ static u16 rmnet_vnd_select_queue(struct net_device *dev,
 				  struct net_device *sb_dev)
 {
 	struct rmnet_priv *priv = netdev_priv(dev);
+	struct rmnet_port *port = rmnet_get_port(priv->real_dev);
 	u64 boost_period = 0;
 	int boost_trigger = 0;
 	int txq = 0;
@@ -432,7 +438,7 @@ skip_trace_print_udp_tx:
 	}
 
 skip_trace:
-	if (priv->real_dev)
+        if (priv->real_dev)
 		txq = qmi_rmnet_get_queue(dev, skb);
 
 	if (rmnet_core_userspace_connected) {
@@ -446,6 +452,10 @@ skip_trace:
 	}
 
 	rmnet_module_hook_aps_pre_queue(dev, skb);
+
+	if (port && port->qos_legacy_mode) {
+		txq = qmi_rmnet_get_queue_legacy(dev, skb);
+	}
 
 	return (txq < dev->real_num_tx_queues) ? txq : 0;
 }
@@ -739,7 +749,7 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 		priv->mux_id = id;
 		rcu_assign_pointer(priv->qos_info,
 			qmi_rmnet_qos_init(real_dev, rmnet_dev, id));
-
+		xa_init(&priv->queue_map);
 		netdev_dbg(rmnet_dev, "rmnet dev created\n");
 	}
 
@@ -786,4 +796,91 @@ void rmnet_vnd_reset_mac_addr(struct net_device *dev)
 		return;
 
 	eth_random_addr(dev->perm_addr);
+}
+
+int rmnet_vnd_update_queue_map(struct net_device *dev, u8 operation,
+				u8 txqueue, u32 mark,
+				struct netlink_ext_ack *extack)
+{
+	struct rmnet_priv *priv = netdev_priv(dev);
+	struct rmnet_port *port = rmnet_get_port(priv->real_dev);
+	struct netdev_queue *q;
+	void *p;
+	u8 txq;
+	if (!port) {
+		NL_SET_ERR_MSG_MOD(extack, "port not found");
+		return -EINVAL;
+	}
+
+	if (unlikely(txqueue >= dev->num_tx_queues)) {
+		NL_SET_ERR_MSG_MOD(extack, "invalid txqueue");
+		return -EINVAL;
+	}
+
+
+	switch (operation) {
+	case RMNET_QUEUE_MAPPING_ADD:
+		if (!port->qos_legacy_mode) {
+			NL_SET_ERR_MSG_MOD(extack, "QOS legacy mode not enabled");
+			return -EINVAL;
+		}
+		p = xa_store(&priv->queue_map, mark, xa_mk_value(txqueue),
+			     GFP_ATOMIC);
+		if (xa_is_err(p)) {
+			NL_SET_ERR_MSG_MOD(extack, "unable to add mapping");
+			return xa_err(p);
+		}
+		break;
+	case RMNET_QUEUE_MAPPING_REMOVE:
+		if (!port->qos_legacy_mode) {
+			NL_SET_ERR_MSG_MOD(extack, "QOS legacy mode not enabled");
+			return -EINVAL;
+		}
+		/* Enable both queues before removal to flush buffered packets */
+		p = xa_load(&priv->queue_map, mark);
+		if (p && xa_is_value(p)) {
+			txq = xa_to_value(p);
+			qmi_rmnet_flow_control_queue_pair(dev, txq,
+							  RMNET_QUEUE_PAIR_ENABLE);
+		}
+		p = xa_erase(&priv->queue_map, mark);
+		if (xa_is_err(p)) {
+			NL_SET_ERR_MSG_MOD(extack, "unable to remove mapping");
+			return xa_err(p);
+		}
+		break;
+	case RMNET_QUEUE_SET_LEGACY_MODE:
+		if (!port->qos_legacy_mode)
+			port->qos_legacy_mode = 1;
+		break;
+	case RMNET_QUEUE_ENABLE:
+	case RMNET_QUEUE_DISABLE:
+		if (!port->qos_legacy_mode) {
+			NL_SET_ERR_MSG_MOD(extack, "QOS legacy mode not enabled");
+			return -EINVAL;
+		}
+		p = xa_load(&priv->queue_map, mark);
+		if (p && xa_is_value(p)) {
+			txq = xa_to_value(p);
+
+			q = netdev_get_tx_queue(dev, txq);
+			if (unlikely(!q)) {
+				NL_SET_ERR_MSG_MOD(extack, "invalid queue mapping");
+				return -EINVAL;
+			}
+			/* Control both data and ACK queues */
+			qmi_rmnet_flow_control_queue_pair(dev, txq,
+				(operation == RMNET_QUEUE_ENABLE) ?
+				RMNET_QUEUE_PAIR_ENABLE : RMNET_QUEUE_PAIR_DISABLE);
+		} else {
+			NL_SET_ERR_MSG_MOD(extack, "invalid queue mapping");
+			return -EINVAL;
+		}
+		break;
+	default:
+		NL_SET_ERR_MSG_MOD(extack, "unsupported operation");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
 }

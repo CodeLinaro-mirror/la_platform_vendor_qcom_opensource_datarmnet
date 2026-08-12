@@ -414,6 +414,103 @@ TRACE_EVENT(dfc_pm_event,
 		  __entry->event)
 );
 
+/*****************************************************************************/
+/* Trace events for legacy (non-DFC) flow control */
+/*****************************************************************************/
+TRACE_EVENT(legacy_flow_control,
+
+	TP_PROTO(const char *operation, const char *dev_name, u32 flow_id,
+		 u32 queue_id, u32 mark),
+
+	TP_ARGS(operation, dev_name, flow_id, queue_id, mark),
+
+	TP_STRUCT__entry(
+		__string(operation, operation)
+		__string(dev_name, dev_name)
+		__field(u32, flow_id)
+		__field(u32, queue_id)
+		__field(u32, mark)
+	),
+
+	TP_fast_assign(
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
+		__assign_str(operation, operation);
+		__assign_str(dev_name, dev_name);
+#else
+		__assign_str(operation);
+		__assign_str(dev_name);
+#endif
+		__entry->flow_id = flow_id;
+		__entry->queue_id = queue_id;
+		__entry->mark = mark;
+	),
+
+	TP_printk("LEGACY: %s dev=%s flow_id=0x%x queue=%u mark=0x%x",
+		__get_str(operation), __get_str(dev_name),
+		__entry->flow_id, __entry->queue_id, __entry->mark)
+);
+
+TRACE_EVENT(legacy_flow_check,
+
+	TP_PROTO(const char *dev_name, unsigned int skb_len, u32 mark,
+		 u32 queue_id, bool is_ack),
+
+	TP_ARGS(dev_name, skb_len, mark, queue_id, is_ack),
+
+	TP_STRUCT__entry(
+		__string(dev_name, dev_name)
+		__field(unsigned int, skb_len)
+		__field(u32, mark)
+		__field(u32, queue_id)
+		__field(bool, is_ack)
+	),
+
+	TP_fast_assign(
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
+		__assign_str(dev_name, dev_name);
+#else
+		__assign_str(dev_name);
+#endif
+		__entry->skb_len = skb_len;
+		__entry->mark = mark;
+		__entry->queue_id = queue_id;
+		__entry->is_ack = is_ack;
+	),
+
+	TP_printk("LEGACY: dev=%s skb_len=%u mark=0x%x queue=%u %s",
+		__get_str(dev_name), __entry->skb_len, __entry->mark,
+		__entry->queue_id, __entry->is_ack ? "ACK" : "DATA")
+);
+
+TRACE_EVENT(legacy_queue_control,
+
+	TP_PROTO(const char *dev_name, u32 data_queue, u32 ack_queue,
+		 int enable),
+
+	TP_ARGS(dev_name, data_queue, ack_queue, enable),
+
+	TP_STRUCT__entry(
+		__string(dev_name, dev_name)
+		__field(u32, data_queue)
+		__field(u32, ack_queue)
+		__field(int, enable)
+	),
+
+	TP_fast_assign(
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
+		__assign_str(dev_name, dev_name);
+#else
+		__assign_str(dev_name);
+#endif
+		__entry->data_queue = data_queue;
+		__entry->ack_queue = ack_queue;
+		__entry->enable = enable;
+	),
+
+	TP_printk("LEGACY: dev=%s data_q=%u ack_q=%u %s",
+		__get_str(dev_name), __entry->data_queue, __entry->ack_queue,
+		__entry->enable ? "ENABLE" : "DISABLE")
+);
 
 #endif /* _TRACE_DFC_H */
 

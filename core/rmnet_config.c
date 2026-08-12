@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/netlink.h>
 #include <linux/netdevice.h>
+#include <linux/xarray.h>
 #include "rmnet_config.h"
 #include "rmnet_handlers.h"
 #include "rmnet_vnd.h"
@@ -64,6 +65,7 @@ enum {
 	IFLA_RMNET_DFC_QOS = __IFLA_RMNET_MAX,
 	IFLA_RMNET_UL_AGG_PARAMS,
 	IFLA_RMNET_UL_AGG_STATE_ID,
+	IFLA_RMNET_QUEUE,
 	__IFLA_RMNET_EXT_MAX,
 };
 
@@ -82,6 +84,9 @@ static const struct nla_policy rmnet_policy[__IFLA_RMNET_EXT_MAX] = {
 	},
 	[IFLA_RMNET_UL_AGG_STATE_ID] = {
 		.type = NLA_U8
+	},
+	[IFLA_RMNET_QUEUE] = {
+		.len = sizeof(struct rmnet_queue_mapping)
 	},
 };
 
@@ -262,8 +267,24 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 					       agg_params->agg_time);
 	}
 
-	return 0;
+	if (data[IFLA_RMNET_QUEUE]) {
+		struct rmnet_queue_mapping *queue_map;
 
+		queue_map = nla_data(data[IFLA_RMNET_QUEUE]);
+		err = rmnet_vnd_update_queue_map(dev, queue_map->operation,
+						 queue_map->txqueue,
+						 queue_map->mark, extack);
+		if (err < 0)
+			goto err2;
+
+		netdev_dbg(dev, "op %02x txq %02x mark %08x\n",
+			   queue_map->operation, queue_map->txqueue,
+			   queue_map->mark);
+	}
+
+	return 0;
+err2:
+	hlist_del_init_rcu(&ep->hlnode);
 err1:
 	rmnet_unregister_real_device(real_dev, port);
 err0:
@@ -493,6 +514,21 @@ static int rmnet_changelink(struct net_device *dev, struct nlattr *tb[],
 					       agg_params->agg_time);
 	}
 
+	if (data[IFLA_RMNET_QUEUE]) {
+		struct rmnet_queue_mapping *queue_map;
+		int err;
+
+		queue_map = nla_data(data[IFLA_RMNET_QUEUE]);
+		err = rmnet_vnd_update_queue_map(dev, queue_map->operation,
+						 queue_map->txqueue,
+						 queue_map->mark, extack);
+		if (err < 0)
+			return err;
+
+		netdev_dbg(dev, "op %02x txq %02x mark %08x\n",
+			   queue_map->operation, queue_map->txqueue,
+			   queue_map->mark);
+	}
 	return rc;
 }
 
@@ -506,7 +542,9 @@ static size_t rmnet_get_size(const struct net_device *dev)
 		/* IFLA_RMNET_DFC_QOS */
 		nla_total_size(sizeof(struct tcmsg)) +
 		/* IFLA_RMNET_UL_AGG_PARAMS */
-		nla_total_size(sizeof(struct rmnet_egress_agg_params));
+		nla_total_size(sizeof(struct rmnet_egress_agg_params)) +
+		/* IFLA_RMNET_QUEUE */
+		nla_total_size(sizeof(struct rmnet_queue_mapping));
 }
 
 static int rmnet_fill_info(struct sk_buff *skb, const struct net_device *dev)

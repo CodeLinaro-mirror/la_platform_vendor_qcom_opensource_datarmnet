@@ -483,7 +483,8 @@ static struct rmnet_endpoint *rmnet_get_iproute_ep_dev(struct rmnet_port *port,
 	struct rmnet_endpoint *ep;
 
 	hlist_for_each_entry_rcu(ep, &port->muxed_ep[0], hlnode) {
-		if (!memcmp(ep->egress_dev, devname, strlen(devname))) {
+		if (ep->egress_dev &&
+		    !strncmp(ep->egress_dev->name, devname, IFNAMSIZ)) {
 			return ep;
 		}
 	}

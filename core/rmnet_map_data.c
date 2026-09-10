@@ -627,10 +627,20 @@ static void rmnet_map_move_headers(struct sk_buff *skb)
 	if (!skb_is_nonlinear(skb))
 		return;
 
+	/* Ensure at least one byte to access the IP version */
+	if (!skb->len)
+		return;
+
 	iph = (struct iphdr *)rmnet_map_data_ptr(skb);
 	if (iph->version == 4) {
+		if (skb->len < sizeof(*iph))
+			return;
+
 		ip_len = iph->ihl * 4;
 		proto = iph->protocol;
+		if (ip_len < sizeof(struct iphdr) || skb->len < ip_len)
+			return;
+
 		if (iph->frag_off & htons(IP_OFFSET))
 			/* No transport header information */
 			goto pull;
@@ -639,9 +649,12 @@ static void rmnet_map_move_headers(struct sk_buff *skb)
 		__be16 frag_off;
 		u8 nexthdr = ip6h->nexthdr;
 
+		if (skb->len < sizeof(*ip6h))
+			return;
+
 		ip_len = ipv6_skip_exthdr(skb, sizeof(*ip6h), &nexthdr,
 					  &frag_off);
-		if (ip_len < 0)
+		if (ip_len < 0 || skb->len < ip_len)
 			return;
 
 		proto = nexthdr;
@@ -650,10 +663,19 @@ static void rmnet_map_move_headers(struct sk_buff *skb)
 	}
 
 	if (proto == IPPROTO_TCP) {
-		struct tcphdr *tp = (struct tcphdr *)((u8 *)iph + ip_len);
+		struct tcphdr *tp;
 
+		if (skb->len < ip_len + sizeof(*tp))
+			goto pull;
+
+		tp = (struct tcphdr *)((u8 *)iph + ip_len);
 		trans_len = tp->doff * 4;
+		if (skb->len < ip_len + trans_len)
+			trans_len = 0;
 	} else if (proto == IPPROTO_UDP) {
+		if (skb->len < ip_len + sizeof(struct udphdr))
+			goto pull;
+
 		trans_len = sizeof(struct udphdr);
 	} else if (proto == NEXTHDR_FRAGMENT) {
 		/* Non-first fragments don't have the fragment length added by

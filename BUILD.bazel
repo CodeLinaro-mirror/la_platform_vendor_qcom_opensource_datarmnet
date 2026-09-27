@@ -44,6 +44,11 @@ define_rmnet_core_module("malabar", "perf")
 define_rmnet_core_module("shikra", "consolidate")
 define_rmnet_core_module("shikra", "perf")
 
+define_rmnet_ctl_module("waipio", "consolidate")
+define_rmnet_core_module("waipio", "consolidate")
+define_rmnet_ctl_module("waipio", "perf")
+define_rmnet_core_module("waipio", "perf")
+
 package(
     default_visibility = [
         "//visibility:public",

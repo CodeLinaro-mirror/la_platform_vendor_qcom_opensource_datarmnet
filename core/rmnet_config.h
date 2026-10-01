@@ -27,6 +27,7 @@
 #include "rmnet_eth_main.h"
 
 #define RMNET_MAX_VEID 16
+#define RMNET_MAX_TX_QUEUES 31
 
 #define RMNET_SHS_STMP_ALL BIT(0)
 #define RMNET_SHS_NO_PSH BIT(1)

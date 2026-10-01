@@ -1,5 +1,5 @@
 /* Copyright (c) 2020-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021, 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -83,12 +83,16 @@ int rmnet_ll_buffer_pool_alloc(struct rmnet_ll_endpoint *ll_ep)
 void rmnet_ll_buffer_pool_free(struct rmnet_ll_endpoint *ll_ep)
 {
 	struct rmnet_ll_buffer *ll_buf, *tmp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ll_ep->buf_pool.pool_lock, flags);
 	list_for_each_entry_safe(ll_buf, tmp, &ll_ep->buf_pool.buf_list, list) {
 		list_del(&ll_buf->list);
 		put_page(ll_buf->page);
 	}
 
 	ll_ep->buf_pool.last = NULL;
+	spin_unlock_irqrestore(&ll_ep->buf_pool.pool_lock, flags);
 }
 
 void rmnet_ll_buffers_recycle(struct rmnet_ll_endpoint *ll_ep)
@@ -96,6 +100,7 @@ void rmnet_ll_buffers_recycle(struct rmnet_ll_endpoint *ll_ep)
 	struct rmnet_ll_buffer *ll_buf, *tmp;
 	LIST_HEAD(buf_list);
 	int num_tre, count = 0, iter = 0;
+	unsigned long flags;
 
 	if (!rmnet_ll_client.query_free_descriptors)
 		goto out;
@@ -103,6 +108,13 @@ void rmnet_ll_buffers_recycle(struct rmnet_ll_endpoint *ll_ep)
 	num_tre = rmnet_ll_client.query_free_descriptors(ll_ep);
 	if (!num_tre)
 		goto out;
+
+	spin_lock_irqsave(&ll_ep->buf_pool.pool_lock, flags);
+	if (!ll_ep->buf_pool.last) {
+		/* Pool was torn down concurrently; nothing to recycle */
+		spin_unlock_irqrestore(&ll_ep->buf_pool.pool_lock, flags);
+		goto out;
+	}
 
 	list_for_each_entry_safe(ll_buf, tmp, ll_ep->buf_pool.last, list) {
 		if (++iter > RMNET_LL_MAX_RECYCLE_ITER || count == num_tre)
@@ -117,11 +129,27 @@ void rmnet_ll_buffers_recycle(struct rmnet_ll_endpoint *ll_ep)
 
 	/* Mark where we left off */
 	ll_ep->buf_pool.last = &ll_buf->list;
+	spin_unlock_irqrestore(&ll_ep->buf_pool.pool_lock, flags);
+
 	/* Submit any pool buffers to the HW if we found some */
 	if (count) {
 		rmnet_ll_buffers_submit(ll_ep, &buf_list);
-		/* requeue immediately BEFORE the last checked element */
-		list_splice_tail_init(&buf_list, ll_ep->buf_pool.last);
+
+		spin_lock_irqsave(&ll_ep->buf_pool.pool_lock, flags);
+		if (ll_ep->buf_pool.last) {
+			/* requeue immediately BEFORE the last checked element */
+			list_splice_tail_init(&buf_list, ll_ep->buf_pool.last);
+		} else {
+			/* Pool was torn down while buffers were in flight to
+			 * the HW; drop them instead of leaking/splicing into
+			 * a freed list.
+			 */
+			list_for_each_entry_safe(ll_buf, tmp, &buf_list, list) {
+				list_del(&ll_buf->list);
+				put_page(ll_buf->page);
+			}
+		}
+		spin_unlock_irqrestore(&ll_ep->buf_pool.pool_lock, flags);
 	}
 
 	/* Do any temporary allocations needed to fill the rest */

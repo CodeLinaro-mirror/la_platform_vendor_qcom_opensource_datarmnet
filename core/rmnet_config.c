@@ -483,7 +483,8 @@ static struct rmnet_endpoint *rmnet_get_iproute_ep_dev(struct rmnet_port *port,
 	struct rmnet_endpoint *ep;
 
 	hlist_for_each_entry_rcu(ep, &port->muxed_ep[0], hlnode) {
-		if (!memcmp(ep->egress_dev, devname, strlen(devname))) {
+		if (ep->egress_dev &&
+		    !strncmp(ep->egress_dev->name, devname, IFNAMSIZ)) {
 			return ep;
 		}
 	}
@@ -682,6 +683,7 @@ struct rtnl_link_ops rmnet_link_ops __read_mostly = {
 	.kind		= "rmnet",
 	.maxtype	= __IFLA_RMNET_EXT_MAX - 1,
 	.priv_size	= sizeof(struct rmnet_priv),
+	.alloc		= rmnet_vnd_alloc,
 	.setup		= rmnet_vnd_setup,
 	.validate	= rmnet_rtnl_validate,
 	.newlink	= rmnet_newlink,

@@ -70,6 +70,11 @@ def define_rmnet_ctl_module(target, variant):
                      "core/rmnet_ctl_client.c",
                  ],
             },
+            "CONFIG_ARCH_WAIPIO": {
+                 True: [
+		    "core/rmnet_ctl_client.c",
+		 ],
+             },
         },
         kernel_build = kernel_build,
         deps = deps_ctl + [
@@ -133,8 +138,6 @@ def define_rmnet_core_module(target, variant):
     rmnet_local_defines = ["RMNET_TRACE_INCLUDE_PATH={}/core".format(include_base)]
     if target == "shikra":
         rmnet_local_defines += ["TRANSPORT_RMNET_BAM"]
-    if target in ["malabar", "chora"]:
-        rmnet_local_defines += ["RMNET_DISABLE_DFC_SUSPEND"]
 
     ddk_module(
         name = "{}_rmnet_core".format(kernel_build_variant),

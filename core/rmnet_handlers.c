@@ -306,6 +306,9 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 	/* We don't need the spinlock since only we touch this */
 	__skb_queue_head_init(&list);
 
+	if (skb->len < sizeof(*qmap))
+		goto free_skb;
+
 	qmap = (struct rmnet_map_header *)rmnet_map_data_ptr(skb);
 	if (qmap->cd_bit) {
 		struct sk_buff *skbn = skb_clone(skb, GFP_ATOMIC);
@@ -362,6 +365,10 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 	}
 
 	pad = qmap->pad_len;
+
+	if (pad > ntohs(qmap->pkt_len))
+		goto free_skb;
+
 	len = ntohs(qmap->pkt_len) - pad;
 	skb->dev = ep->egress_dev;
 
@@ -372,6 +379,14 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 		if (rmnet_map_process_next_hdr_packet(skb, &list, len))
 			goto free_skb;
 	} else {
+		u32 needed = (u32)len + pad;
+
+		if (port->data_format & RMNET_FLAGS_INGRESS_MAP_CKSUMV4)
+			needed += sizeof(struct rmnet_map_dl_csum_trailer);
+
+		if (skb->len < sizeof(*qmap) + needed)
+			goto free_skb;
+
 		/* We only have the main QMAP header to worry about */
 		pskb_pull(skb, sizeof(*qmap));
 
